@@ -1,0 +1,55 @@
+# Name for your workflow (shows up in GitHub Actions tab)
+name: Node.js CI/CD Pipeline
+
+# --- When to run this workflow ---
+on:
+  push: # Run on pushes to specific branches
+    branches: [ main ] # Change 'main' if your default branch is 'master'
+  pull_request: # Also run on pull requests targeting specific branches
+    branches: [ main ] # Change 'main' if your default branch is 'master'
+
+# --- What jobs to run ---
+jobs:
+  build_and_test: # Define a single job named 'build_and_test'
+    name: Build and Test Project # Display name for the job
+    runs-on: ubuntu-latest # Use a standard Linux virtual machine provided by GitHub
+
+    strategy:
+      matrix:
+        node-version: [18.x] # Specify the Node.js version to use (use your project's version)
+
+    # --- Steps within the job ---
+    steps:
+      # 1. Get your code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v3 # Standard GitHub Action to check out code
+
+      # 2. Set up the specified Node.js version
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm' # Cache npm dependencies to speed up subsequent runs
+
+      # --- Backend Steps ---
+      - name: Install Backend Dependencies
+        run: npm ci # 'ci' is recommended for pipelines - ensures clean install based on package-lock.json
+        working-directory: ./insurance-backend # IMPORTANT: Specify the backend folder
+
+      - name: Run Backend Tests
+        run: npm test
+        working-directory: ./insurance-backend # IMPORTANT: Specify the backend folder
+
+      # --- Frontend Steps ---
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: ./insurance-frontend # IMPORTANT: Specify the frontend folder
+
+      - name: Run Frontend Tests
+        run: npm test
+        working-directory: ./insurance-frontend # IMPORTANT: Specify the frontend folder
+
+      # Optional: Add a build step for React if needed (uncomment if you want this)
+      # - name: Build Frontend
+      #   run: npm run build
+      #   working-directory: ./insurance-frontend
