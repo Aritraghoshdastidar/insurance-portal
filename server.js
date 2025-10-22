@@ -59,7 +59,7 @@ app.post('/api/quote', async (req, res) => {
         const basePremiumNum = parseFloat(base_premium);
 
         const birthDate = new Date(dob);
-        const today = new Date('2025-10-21');
+        const today = new Date('2025-10-21'); // Consider using current date dynamically
         let age = today.getFullYear() - birthDate.getFullYear();
         const m = today.getMonth() - birthDate.getMonth();
         if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
@@ -220,7 +220,7 @@ app.post('/api/my-claims', checkAuth, async (req, res) => {
 });
 
 
-// --- 11. Admin Login Endpoint (with DEBUGGING) ---
+// --- 11. Admin Login Endpoint ---
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -237,18 +237,13 @@ app.post('/api/admin/login', async (req, res) => {
         }
 
         const admin = rows[0];
-
-        // --- DEBUGGING LINES ---
-        console.log('--- ADMIN LOGIN ATTEMPT ---');
-        console.log('Admin object from database:', admin);
-        console.log('Password from DB:', admin.password);
-        console.log('Password from request:', password);
-        // --- END DEBUGGING ---
-
-        // Compare the provided password with the stored hash
+        // Ensure admin.password is not null before comparing
+        if (!admin.password) {
+             console.error(`Admin ${admin.admin_id} has no password set.`);
+             return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        
         const isPasswordMatch = await bcrypt.compare(password, admin.password);
-
-        console.log('Was password a match?', isPasswordMatch); // See the result
 
         if (!isPasswordMatch) {
             return res.status(401).json({ error: 'Invalid email or password' });
@@ -276,7 +271,9 @@ app.post('/api/admin/login', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-// --- 12. NEW: Admin Endpoint to Get PENDING Claims ---
+
+
+// --- 12. Admin Endpoint to Get PENDING Claims ---
 app.get('/api/admin/pending-claims', checkAuth, async (req, res) => {
     try {
         // 1. Check if the logged-in user is actually an admin
@@ -287,10 +284,10 @@ app.get('/api/admin/pending-claims', checkAuth, async (req, res) => {
         // 2. Fetch pending claims from the database
         const connection = await mysql.createConnection(dbConfig);
         const [rows] = await connection.execute(
-            `SELECT claim_id, customer_id, description, claim_date, amount 
-             FROM claim 
-             WHERE claim_status = 'PENDING' 
-             ORDER BY claim_date ASC` 
+            `SELECT claim_id, customer_id, description, claim_date, amount
+             FROM claim
+             WHERE claim_status = 'PENDING'
+             ORDER BY claim_date ASC`
         );
         await connection.end();
 
@@ -301,11 +298,56 @@ app.get('/api/admin/pending-claims', checkAuth, async (req, res) => {
         console.error('Error fetching pending claims:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
+}); // <-- GET PENDING CLAIMS ENDS HERE
+
+
+// --- 13. Admin Endpoint to UPDATE a Claim Status ---
+// (Moved to its correct place after the GET endpoint)
+app.patch('/api/admin/claims/:claimId', checkAuth, async (req, res) => {
+    try {
+        // 1. Check if the user is an admin
+        if (!req.user || !req.user.isAdmin) {
+            return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+        }
+
+        // 2. Get claim ID from URL and new status from request body
+        const claimId = req.params.claimId;
+        const { newStatus } = req.body; // Expecting 'APPROVED' or 'DECLINED'
+
+        // 3. Validate the new status
+        if (newStatus !== 'APPROVED' && newStatus !== 'DECLINED') {
+            return res.status(400).json({ error: 'Invalid status provided.' });
+        }
+
+        // 4. Update the claim in the database
+        const connection = await mysql.createConnection(dbConfig);
+        const logMessage = `\nClaim ${newStatus.toLowerCase()} by admin ${req.user.admin_id}.`;
+
+        const [result] = await connection.execute(
+            `UPDATE claim
+             SET claim_status = ?,
+                 status_log = CONCAT(IFNULL(status_log, ''), ?)
+             WHERE claim_id = ? AND claim_status = 'PENDING'`, // Only update if still pending
+            [newStatus, logMessage, claimId]
+        );
+        await connection.end();
+
+        // 5. Check if the update actually happened
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Claim not found or not pending.' });
+        }
+
+        // 6. Send success response
+        res.json({ message: `Claim ${claimId} status updated to ${newStatus}.` });
+
+    } catch (error) {
+        console.error('Error updating claim status:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 
-
-// --- 6. Start the Server --- (Should probably be relabeled as 12)
+// --- 14. Start the Server --- (Corrected comment number)
 app.listen(port, () => {
     console.log(`✅ Backend API server running at http://localhost:${port}`);
 });
