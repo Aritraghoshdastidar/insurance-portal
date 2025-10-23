@@ -337,3 +337,114 @@ button:hover {
 .form-footer-link a:hover {
   text-decoration: underline;
 }
+/* --- Add this to the end of App.css --- */
+
+/* Workflow List Table */
+.workflows-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+.workflows-table th,
+.workflows-table td {
+  border: 1px solid #ddd;
+  padding: 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+.workflows-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+/* Workflow Editor */
+.workflow-editor-container h3 {
+  margin-top: 30px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.workflow-steps-list {
+  list-style: none;
+  padding-left: 0;
+}
+.workflow-steps-list li {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+.workflow-steps-list pre {
+  background-color: #e9ecef;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  margin-top: 10px;
+  white-space: pre-wrap; /* Wrap long JSON */
+  word-break: break-all;
+}
+
+.add-step-form {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px dashed #ccc;
+  border-radius: 5px;
+  background-color: #fafafa;
+}
+.add-step-form h4 {
+  margin-top: 0;
+}
+
+/* Make step form fields appear inline */
+.inline-group {
+  display: inline-block; /* Or use flexbox */
+  width: calc(33% - 10px); /* Adjust width as needed */
+  margin-right: 10px;
+  vertical-align: top;
+}
+.inline-group label {
+    display: block; /* Ensure label is above input */
+}
+.inline-group input, .inline-group select {
+    width: 100%; /* Make input fill container */
+}
+.add-step-form textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 0.9rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-family: monospace; /* Good for JSON */
+}
+
+/* Secondary button style */
+.button-secondary {
+    background-color: #6c757d; /* Gray */
+    color: white;
+}
+.button-secondary:hover {
+    background-color: #5a6268;
+}
+/* --- Add this to the end of App.css --- */
+
+/* Workflow Step Edit/Delete Buttons */
+.edit-button {
+  background-color: #ffc107; /* Yellow */
+  color: #333;
+}
+.edit-button:hover {
+  background-color: #e0a800;
+}
+
+.workflow-steps-list li div { /* Container for step title and buttons */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+.workflow-steps-list li div button { /* Make buttons smaller */
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}

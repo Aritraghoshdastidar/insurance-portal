@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // Make sure Link is imported
 
 function AdminDashboard() {
   const [pendingClaims, setPendingClaims] = useState([]);
@@ -33,10 +34,10 @@ function AdminDashboard() {
     fetchPendingClaims();
   }, []);
 
-  // --- NEW: Function to handle Approve/Decline ---
+  // --- Function to handle Approve/Decline ---
   const handleUpdateStatus = async (claimId, newStatus) => {
-    setUpdateStatus(prev => ({ ...prev, [claimId]: 'Updating...' })); // Show loading on the specific row
-    setError(null); // Clear general errors
+    setUpdateStatus(prev => ({ ...prev, [claimId]: 'Updating...' }));
+    setError(null);
 
     try {
       const token = localStorage.getItem('token');
@@ -57,24 +58,31 @@ function AdminDashboard() {
 
       // Success! Remove the claim from the list visually
       setPendingClaims(prevClaims => prevClaims.filter(claim => claim.claim_id !== claimId));
-      setUpdateStatus(prev => ({ ...prev, [claimId]: null })); // Clear row status
+      setUpdateStatus(prev => ({ ...prev, [claimId]: null }));
 
     } catch (err) {
       console.error(`Error updating claim ${claimId}:`, err);
-      // Show error on the specific row
       setUpdateStatus(prev => ({ ...prev, [claimId]: `Error: ${err.message}` }));
-      // Optionally set general error too
-      // setError(`Failed to update claim ${claimId}: ${err.message}`);
     }
   };
 
   // --- Render Logic ---
   if (loading) return <div>Loading pending claims...</div>;
-  if (error && pendingClaims.length === 0) return <div className="error">{error}</div>; // Show general error only if list is empty
+  if (error && pendingClaims.length === 0) return <div className="error">{error}</div>;
 
   return (
     <div className="dashboard-container">
-      <h2>Admin Dashboard - Pending Claims</h2>
+      {/* --- ADDED THIS SECTION BACK --- */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2>Admin Dashboard - Pending Claims</h2>
+        <Link to="/admin/workflows">
+          <button className="button-secondary" style={{ width: 'auto' }}>
+            Manage Workflows
+          </button>
+        </Link>
+      </div>
+      {/* --- END OF ADDED SECTION --- */}
+
       {error && <div className="error">{error}</div>} {/* Show general error above table */}
 
       {pendingClaims.length === 0 ? (
@@ -100,7 +108,6 @@ function AdminDashboard() {
                 <td>{new Date(claim.claim_date).toLocaleDateString()}</td>
                 <td>${parseFloat(claim.amount).toFixed(2)}</td>
                 <td>
-                  {/* --- UPDATED: Buttons and Status --- */}
                   {updateStatus[claim.claim_id] ? (
                      <span className={updateStatus[claim.claim_id]?.startsWith('Error') ? 'error-inline' : 'loading-inline'}>
                        {updateStatus[claim.claim_id]}
