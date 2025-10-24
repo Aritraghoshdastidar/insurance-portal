@@ -1,0 +1,49 @@
+# Name for your workflow
+name: Node.js CI/CD Pipeline
+
+# --- When to run this workflow ---
+on:
+  push:
+    branches: [ master, main ] # Watches both 'master' and 'main' branches
+  pull_request:
+    branches: [ master, main ]
+
+# --- What jobs to run ---
+jobs:
+  build_and_test:
+    name: Build and Test Project
+    runs-on: ubuntu-latest # Use a standard Linux virtual machine
+
+    strategy:
+      matrix:
+        node-version: [18.x] # Specify the Node.js version
+
+    steps:
+      # 1. Get your code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Set up the specified Node.js version
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      # --- Backend Steps ---
+      - name: Install Backend Dependencies
+        run: npm ci
+        # The working-directory is removed because we are already in the backend root
+
+      - name: Run Backend Tests
+        run: npm test
+        # The working-directory is removed because we are already in the backend root
+
+      # --- Frontend Steps ---
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: ./insurance-frontend # This path is now correct
+
+      - name: Run Frontend Tests
+        run: npm test
+        working-directory: ./insurance-frontend # This path is now correct
