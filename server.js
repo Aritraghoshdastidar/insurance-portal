@@ -1,11 +1,13 @@
 // --- 1. Import Required Tools ---
+require('dotenv').config(); // <-- ADDED: Loads .env file
 const express = require('express');
 const mysql = require('mysql2/promise'); // Using the 'promise' version for modern async/await
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const saltRounds = 10; // Standard for bcrypt
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = 'your_super_secret_key_12345'; // Change this to a random, secure string
+// v-- MODIFIED: Read secret from .env, with a fallback
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_12345';
 
 
 // --- 2. Setup the Express App ---
@@ -25,7 +27,7 @@ const dbConfig = {
 
 
 // --- 4. Middleware ---
-
+// ... (Your existing checkAuth and checkAdmin middleware - no changes) ...
 // Middleware for checking the JWT token
 const checkAuth = (req, res, next) => {
     try {
@@ -61,6 +63,7 @@ const checkAdmin = (req, res, next) => {
 
 
 // --- 5. Workflow Engine Logic ---
+// ... (Your existing executeWorkflowStep logic - no changes) ...
 async function executeWorkflowStep(claimId) {
     let connection;
     console.log(`[WF Engine] Processing claim: ${claimId}`); // Added prefix for clarity
@@ -279,7 +282,7 @@ async function executeWorkflowStep(claimId) {
 
 
 // --- 6. Public API Endpoints ---
-
+// ... (Your existing /api/quote, /api/register, /api/login, /api/admin/login endpoints - no changes) ...
 // Quote Generation Endpoint
 app.post('/api/quote', async (req, res) => {
     let connection;
@@ -465,6 +468,7 @@ app.post('/api/admin/login', async (req, res) => {
 // --- 7. Secure Customer API Endpoints ---
 
 // Get Claims for Logged-in Customer
+// ... (Your existing /api/my-claims GET endpoint - no changes) ...
 app.get('/api/my-claims', checkAuth, async (req, res) => {
     let connection;
     try {
@@ -486,7 +490,9 @@ app.get('/api/my-claims', checkAuth, async (req, res) => {
     }
 });
 
+
 // File a New Claim for Logged-in Customer (Triggers Workflow)
+// ... (Your existing /api/my-claims POST endpoint - no changes) ...
 app.post('/api/my-claims', checkAuth, async (req, res) => {
     let connection;
     let claim_id; // Define claim_id outside try for use in triggering
@@ -546,8 +552,105 @@ app.post('/api/my-claims', checkAuth, async (req, res) => {
 });
 
 
-// --- 8. Secure Admin API Endpoints ---
+// --- [NEW] Get Policies for Logged-in Customer ---
+app.get('/api/my-policies', checkAuth, async (req, res) => {
+    let connection;
+    try {
+        if (req.user.isAdmin) return res.status(403).json({ error: 'Access denied.' });
+        const customer_id = req.user.customer_id;
 
+        connection = await mysql.createConnection(dbConfig);
+        // Join customer_policy with policy to get details
+        const [rows] = await connection.execute(
+            `SELECT p.policy_id, p.policy_type, p.premium_amount, p.status, p.start_date, p.end_date
+             FROM policy p
+             JOIN customer_policy cp ON p.policy_id = cp.policy_id
+             WHERE cp.customer_id = ?
+             ORDER BY p.policy_date DESC`,
+            [customer_id]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching customer policies:', error);
+        res.status(500).json({ error: 'Internal server error fetching policies.' });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+
+// --- [NEW] Mock Policy Activation Endpoint ---
+app.post('/api/policies/:policyId/mock-activate', checkAuth, async (req, res) => {
+    let connection;
+    const { policyId } = req.params;
+    const customer_id = req.user.customer_id; // Get customer ID from authenticated user
+
+    if (req.user.isAdmin) return res.status(403).json({ error: 'Admins cannot activate customer policies.' });
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        // 1. Verify policy exists, belongs to the customer, and needs payment
+        const [policyRows] = await connection.execute(
+            `SELECT p.policy_id, p.premium_amount, p.status
+             FROM policy p
+             JOIN customer_policy cp ON p.policy_id = cp.policy_id
+             WHERE p.policy_id = ? AND cp.customer_id = ? FOR UPDATE`, // Lock row
+            [policyId, customer_id]
+        );
+
+        if (policyRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Policy not found or does not belong to this customer.' });
+        }
+
+        const policy = policyRows[0];
+        const amountToPay = policy.premium_amount;
+
+        if (policy.status !== 'INACTIVE_AWAITING_PAYMENT') {
+            await connection.rollback();
+            return res.status(400).json({ error: `Policy status is "${policy.status}", activation not required or already active.` });
+        }
+        
+        // 2. Create a 'SUCCESS' record in initial_payment table immediately
+        const payment_id = 'MOCKPAY_' + Date.now();
+        const transaction_id = 'MOCK_TXN_' + Date.now();
+        
+        await connection.execute(
+            `INSERT INTO initial_payment (payment_id, policy_id, customer_id, amount, payment_gateway, transaction_id, payment_status)
+             VALUES (?, ?, ?, ?, 'MOCK_PAYMENT', ?, 'SUCCESS')`,
+            [payment_id, policyId, customer_id, amountToPay, transaction_id]
+        );
+
+        // 3. Update the policy status to ACTIVE
+        await connection.execute(
+            `UPDATE policy SET status = 'ACTIVE'
+             WHERE policy_id = ? AND status = 'INACTIVE_AWAITING_PAYMENT'`,
+            [policyId]
+        );
+
+        await connection.commit();
+
+        // 4. Send success response
+        res.json({
+            message: 'Policy activated successfully (mock payment)!',
+            paymentId: payment_id,
+            transaction_id: transaction_id
+         });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error(`Error in mock activation for policy ${policyId}:`, error);
+        res.status(500).json({ error: 'Internal server error during mock activation.' });
+    } finally {
+        if (connection && connection.connection._closing === false) await connection.end();
+    }
+});
+
+
+// --- 8. Secure Admin API Endpoints ---
+// ... (Your existing Admin endpoints - no changes) ...
 // Get All PENDING Claims (Admin Only)
 app.get('/api/admin/pending-claims', checkAuth, checkAdmin, async (req, res) => {
     let connection;
@@ -766,7 +869,7 @@ app.patch('/api/admin/policies/:policyId/approve', checkAuth, checkAdmin, async 
 
 
 // --- 9. Admin Endpoints for Workflow Management ---
-
+// ... (Your existing Workflow endpoints - no changes) ...
 // Get all workflows
 app.get('/api/admin/workflows', checkAuth, checkAdmin, async (req, res) => {
     let connection;
