@@ -45,7 +45,7 @@ jobs:
 
       # --- Frontend Steps (Uses working-directory) ---
       - name: Install Frontend Dependencies
-        run: npm ci
+        run: npm install
         working-directory: ./insurance-frontend # Specify frontend folder
 
       # Optional: Add frontend linting if configured
