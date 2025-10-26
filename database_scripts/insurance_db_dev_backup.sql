@@ -367,9 +367,17 @@ CREATE TABLE `policy` (
   `status` varchar(50) DEFAULT NULL,
   `policy_type` varchar(50) DEFAULT NULL,
   `previous_policy_id` varchar(50) DEFAULT NULL,
+  `initial_approver_id` varchar(50) DEFAULT NULL,
+  `initial_approval_date` timestamp NULL DEFAULT NULL,
+  `final_approver_id` varchar(50) DEFAULT NULL,
+  `final_approval_date` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`policy_id`),
   KEY `previous_policy_id` (`previous_policy_id`),
-  CONSTRAINT `policy_ibfk_1` FOREIGN KEY (`previous_policy_id`) REFERENCES `policy` (`policy_id`)
+  KEY `fk_policy_initial_approver` (`initial_approver_id`),
+  KEY `fk_policy_final_approver` (`final_approver_id`),
+  CONSTRAINT `policy_ibfk_1` FOREIGN KEY (`previous_policy_id`) REFERENCES `policy` (`policy_id`),
+  CONSTRAINT `fk_policy_initial_approver` FOREIGN KEY (`initial_approver_id`) REFERENCES `administrator` (`admin_id`),
+  CONSTRAINT `fk_policy_final_approver` FOREIGN KEY (`final_approver_id`) REFERENCES `administrator` (`admin_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -379,7 +387,7 @@ CREATE TABLE `policy` (
 
 LOCK TABLES `policy` WRITE;
 /*!40000 ALTER TABLE `policy` DISABLE KEYS */;
-INSERT INTO `policy` VALUES ('POL_TEST_AGENT','2025-10-22',NULL,NULL,5000.00,NULL,'PENDING_APPROVAL','HOME',NULL),('POL0001','2025-10-04','2025-01-01','2025-12-31',15000.00,'Comprehensive health coverage','ACTIVE','HEALTH',NULL),('POL0002','2025-10-04','2025-02-01','2026-01-31',25000.00,'Term Life Insurance','ACTIVE','LIFE',NULL),('POL1001','2025-01-01','2025-01-01','2025-12-31',12000.00,'Basic health coverage','ACTIVE','HEALTH',NULL),('POL1002','2025-02-15','2025-02-15','2026-02-14',15000.00,'Standard car insurance','ACTIVE','CAR',NULL),('POL1003','2025-03-01','2025-03-01','2030-02-28',50000.00,'Premium life insurance','ACTIVE','LIFE',NULL),('POL1004','2025-10-19',NULL,NULL,18000.00,NULL,'ACTIVE','HEALTH',NULL),('POL1005','2025-10-19',NULL,NULL,25000.00,NULL,'PENDING_APPROVAL','HEALTH',NULL);
+INSERT INTO `policy` VALUES ('POL_TEST_AGENT','2025-10-22',NULL,NULL,5000.00,NULL,'PENDING_INITIAL_APPROVAL','HOME',NULL,NULL,NULL,NULL,NULL),('POL0001','2025-10-04','2025-01-01','2025-12-31',15000.00,'Comprehensive health coverage','ACTIVE','HEALTH',NULL,NULL,NULL,NULL,NULL),('POL0002','2025-10-04','2025-02-01','2026-01-31',25000.00,'Term Life Insurance','ACTIVE','LIFE',NULL,NULL,NULL,NULL,NULL),('POL1001','2025-01-01','2025-01-01','2025-12-31',12000.00,'Basic health coverage','ACTIVE','HEALTH',NULL,NULL,NULL,NULL,NULL),('POL1002','2025-02-15','2025-02-15','2026-02-14',15000.00,'Standard car insurance','ACTIVE','CAR',NULL,NULL,NULL,NULL,NULL),('POL1003','2025-03-01','2025-03-01','2030-02-28',50000.00,'Premium life insurance','ACTIVE','LIFE',NULL,NULL,NULL,NULL,NULL),('POL1004','2025-10-19',NULL,NULL,18000.00,NULL,'ACTIVE','HEALTH',NULL,NULL,NULL,NULL,NULL),('POL1005','2025-10-19',NULL,NULL,25000.00,NULL,'PENDING_INITIAL_APPROVAL','HEALTH',NULL,NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `policy` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;

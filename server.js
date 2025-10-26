@@ -649,6 +649,121 @@ app.patch('/api/admin/claims/:claimId', checkAuth, checkAdmin, async (req, res) 
     }
 });
 
+// Get All PENDING Policies (Admin Only)
+app.get('/api/admin/pending-policies', checkAuth, checkAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        // Join with administrator table to get the name of the initial approver, if one exists
+        const [rows] = await connection.execute(
+            `SELECT 
+                p.policy_id, 
+                p.policy_type, 
+                p.premium_amount,
+                p.status, 
+                p.initial_approver_id,
+                a.name as initial_approver_name,
+                p.initial_approval_date
+             FROM policy p
+             LEFT JOIN administrator a ON p.initial_approver_id = a.admin_id
+             WHERE p.status = 'PENDING_INITIAL_APPROVAL' OR p.status = 'PENDING_FINAL_APPROVAL'
+             ORDER BY p.policy_date ASC`
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching pending policies:', error);
+        res.status(500).json({ error: 'Internal server error fetching pending policies.' });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+
+app.patch('/api/admin/policies/:policyId/approve', checkAuth, checkAdmin, async (req, res) => {
+    let connection;
+    const { policyId } = req.params;
+    const { admin_id: currentAdminId, role: currentAdminRole } = req.user; // Get details from JWT
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        // 1. Get the current policy state (and lock the row)
+        const [policyRows] = await connection.execute(
+            'SELECT policy_id, status, initial_approver_id FROM policy WHERE policy_id = ? FOR UPDATE',
+            [policyId]
+        );
+
+        if (policyRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Policy not found.' });
+        }
+        
+        const policy = policyRows[0];
+        let logMessage = "";
+        let newStatus = "";
+
+        // 2. State Machine Logic
+        if (policy.status === 'PENDING_INITIAL_APPROVAL') {
+            // --- Action: Initial Approval ---
+            newStatus = 'PENDING_FINAL_APPROVAL';
+            await connection.execute(
+                `UPDATE policy SET 
+                    status = ?, 
+                    initial_approver_id = ?, 
+                    initial_approval_date = NOW()
+                 WHERE policy_id = ?`,
+                [newStatus, currentAdminId, policyId]
+            );
+            logMessage = `Policy ${policyId} moved to PENDING_FINAL_APPROVAL by ${currentAdminId}.`;
+
+        } else if (policy.status === 'PENDING_FINAL_APPROVAL') {
+            // --- Action: Final Approval (with checks) ---
+            
+            // Check 1: Role check
+            if (currentAdminRole !== 'Security Officer') {
+                await connection.rollback();
+                return res.status(403).json({ error: 'Forbidden: Final approval requires "Security Officer" role.' });
+            }
+
+            // Check 2: Four-Eyes check (different user)
+            if (policy.initial_approver_id === currentAdminId) {
+                await connection.rollback();
+                return res.status(403).json({ error: 'Forbidden: Four-eyes principle violation. Final approver must be different from the initial approver.' });
+            }
+
+            // All checks passed
+            newStatus = 'APPROVED';
+            await connection.execute(
+                `UPDATE policy SET 
+                    status = ?, 
+                    final_approver_id = ?, 
+                    final_approval_date = NOW()
+                 WHERE policy_id = ?`,
+                [newStatus, currentAdminId, policyId]
+            );
+            logMessage = `Policy ${policyId} has been fully APPROVED by ${currentAdminId}.`;
+
+        } else {
+            // --- Action: No action needed ---
+            await connection.rollback();
+            return res.status(400).json({ error: `Policy is in status "${policy.status}" and cannot be approved.` });
+        }
+
+        // 3. Commit and respond
+        await connection.commit();
+        console.log(logMessage);
+        res.json({ message: 'Policy approval status updated successfully!', newState: newStatus });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error(`Error approving policy ${policyId}:`, error);
+        res.status(500).json({ error: 'Internal server error during policy approval.' });
+    } finally {
+        if (connection && connection.connection._closing === false) await connection.end();
+    }
+});
+
 
 // --- 9. Admin Endpoints for Workflow Management ---
 
