@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import jwt_decode from 'jwt-decode'; // You will need to install this!
+import { jwtDecode } from 'jwt-decode'; // <-- THIS LINE IS CHANGED
 
 function AdminDashboard() {
   // --- State ---
@@ -21,7 +21,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const decodedToken = jwt_decode(token);
+        const decodedToken = jwtDecode(token); // <-- THIS LINE IS CHANGED
         setCurrentUser(decodedToken); // e.g., { admin_id: 'ADM002', role: 'Junior Adjuster', ... }
       }
     } catch (err) {
