@@ -1,0 +1,87 @@
+name: CI-CD Pipeline
+
+on:
+  push:
+    # Adjusted branches to likely match your repo (main/master)
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build_and_test: # Renamed job for clarity
+    name: Build and Test Project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use Node v20 as required by react-router
+          cache: 'npm'
+          # Cache dependencies globally, let working-directory handle specifics
+          cache-dependency-path: |
+            **/package-lock.json
+
+      # --- Backend Steps (Runs in Root) ---
+      - name: Install Backend Dependencies
+        run: npm ci # Runs in root, uses root package-lock.json
+
+      # Optional: Add backend linting if configured
+      # - name: Run Backend Linting
+      #   run: npm run lint --if-present
+
+      - name: Run Backend Tests
+        run: npm test # Runs backend tests based on root package.json
+
+      # Optional: Add backend build if needed
+      # - name: Build Backend
+      #   run: npm run build --if-present
+
+      - name: Run Backend Security Audit
+        run: npm audit --audit-level=high
+
+      # --- Frontend Steps (Uses working-directory) ---
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: ./insurance-frontend # Specify frontend folder
+
+      # Optional: Add frontend linting if configured
+      # - name: Run Frontend Linting
+      #   run: npm run lint --if-present
+      #   working-directory: ./insurance-frontend
+
+      - name: Run Frontend Tests
+        run: npm test
+        working-directory: ./insurance-frontend # Specify frontend folder
+
+      - name: Build Frontend Application
+        run: npm run build --if-present # Runs react-scripts build
+        working-directory: ./insurance-frontend # Specify frontend folder
+
+      - name: Run Frontend Security Audit
+        run: npm audit --audit-level=high
+        working-directory: ./insurance-frontend # Specify frontend folder
+
+
+  # --- Placeholder Deploy Job ---
+  deploy:
+    name: Deploy (Placeholder)
+    needs: build_and_test # Run only if build_and_test succeeds
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Only run on pushes to main
+
+    steps:
+      - name: Deploy to staging (Placeholder)
+        run: echo "Deploying to staging environment..."
+        # Add actual deployment steps for staging here later
+
+      - name: Run integration tests (Placeholder)
+        run: echo "Running integration tests..."
+        # Add actual integration tests here later
+
+      - name: Deploy to production (Placeholder)
+        run: echo "Deploying to production environment..."
+        # Add actual deployment steps for production here later (e.g., Netlify/Render CLI commands or actions)
