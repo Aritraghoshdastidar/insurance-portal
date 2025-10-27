@@ -55,8 +55,6 @@ function App() {
 
   // --- Reusable Layout Component with Navbar for Logged-In Users ---
   const AppShell = ({ children }) => {
-    // We get navigate from useNavigate hook for the button action
-    const navigate = useNavigate();
     // Use the handleLogout from the App component scope
     const handleLogoutAndRedirect = () => {
       handleLogout();
