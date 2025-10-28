@@ -19,5 +19,23 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3"
-  }
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-react": "^7.28.5",
+    "babel-jest": "^30.2.0"
+  },
+
+  "babel": {
+    "presets": ["@babel/preset-env", "@babel/preset-react"]
+  },
+
+  "jest": {
+  "transform": {
+    "^.+\\.(js|jsx)$": "babel-jest"
+  },
+  "moduleFileExtensions": ["js", "jsx"]
+}
+
 }
