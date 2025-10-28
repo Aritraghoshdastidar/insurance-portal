@@ -7,11 +7,16 @@ function Dashboard() {
   const [loadingClaims, setLoadingClaims] = useState(true);
   const [errorClaims, setErrorClaims] = useState(null);
 
-  // --- NEW: State for Policies ---
+  // ---  State for Policies ---
   const [policies, setPolicies] = useState([]);
   const [loadingPolicies, setLoadingPolicies] = useState(true);
   const [errorPolicies, setErrorPolicies] = useState(null);
   const [activationStatus, setActivationStatus] = useState({}); // For row-level status
+
+// --- State for Notifications (IWAS-F-041) ---
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [errorNotifications, setErrorNotifications] = useState(null);
 
   // 1. fetchClaims (your existing function, renamed loading/error)
   const fetchClaims = async () => {
@@ -31,7 +36,7 @@ function Dashboard() {
     }
   };
 
-  // --- NEW: fetchPolicies ---
+  // --- fetchPolicies ---
   const fetchPolicies = async () => {
     try {
       setLoadingPolicies(true);
@@ -53,10 +58,33 @@ function Dashboard() {
     }
   };
 
+  // --- fetchNotifications (IWAS-F-041) ---
+const fetchNotifications = async () => {
+  try {
+    setLoadingNotifications(true);
+    setErrorNotifications(null);
+    const token = localStorage.getItem('token');
+    const response = await fetch('http://localhost:3001/api/my-notifications', { // Use the new endpoint
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+       const data = await response.json();
+       throw new Error(data.error || 'Could not fetch notifications.');
+    }
+    const data = await response.json();
+    setNotifications(data);
+  } catch (err) {
+    setErrorNotifications(err.message);
+  } finally {
+    setLoadingNotifications(false);
+  }
+};
+
   // 2. useEffect now calls both
   useEffect(() => {
     fetchClaims();
-    fetchPolicies(); // <-- ADDED
+    fetchPolicies();
+    fetchNotifications(); // IWAS-F-041
   }, []); 
 
   // 3. handleClaimFiled (your existing function)
@@ -64,7 +92,7 @@ function Dashboard() {
     fetchClaims(); // This refreshes the claims list
   };
 
-  // --- NEW: handleActivatePolicy (Mock Payment) ---
+  // --- handleActivatePolicy (Mock Payment) ---
   const handleActivatePolicy = async (policyId) => {
     // Show a simple confirmation for the mock payment
     if (!window.confirm("This is a mock payment.\nDo you want to simulate a successful payment and activate this policy?")) {
@@ -102,7 +130,27 @@ function Dashboard() {
   return (
     <div className="dashboard-container">
       
-      {/* --- NEW: Policies Section --- */}
+      {/* --- Notifications Section (IWAS-F-041) --- */}
+      <h2>Recent Notifications <span role="img" aria-label="bell">🔔</span></h2>
+      {loadingNotifications ? (
+         <div>Loading notifications...</div>
+       ) : errorNotifications ? (
+         <div className="error">{errorNotifications}</div>
+       ) : notifications.length === 0 ? (
+         <p>No recent notifications.</p>
+       ) : (
+         <ul className="notifications-list"> {/* Use class from App.css */}
+           {notifications.map(notif => (
+             <li key={notif.notification_id}>
+               <small>{new Date(notif.sent_timestamp).toLocaleString()}</small>
+               <p>{notif.message}</p>
+             </li>
+           ))}
+         </ul>
+       )}
+      <hr className="section-divider" />
+      
+      {/* ---  Policies Section --- */}
       <h2>My Policies</h2>
       {loadingPolicies ? (
         <div>Loading policies...</div>
