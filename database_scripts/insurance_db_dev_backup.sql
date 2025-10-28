@@ -71,6 +71,24 @@ INSERT INTO `administrator` VALUES ('ADM001','Admin User','admin@insurance.com',
 /*!40000 ALTER TABLE `administrator` ENABLE KEYS */;
 UNLOCK TABLES;
 
+
+--
+-- Table structure for table `audit_log`
+--
+DROP TABLE IF EXISTS `audit_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `audit_log` (
+  `audit_log_id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` VARCHAR(50) NOT NULL,
+  `user_type` ENUM('CUSTOMER', 'ADMIN') NOT NULL,
+  `action_type` VARCHAR(100) NOT NULL,
+  `entity_id` VARCHAR(50) DEFAULT NULL COMMENT 'ID of the affected entity (e.g., claim_id, policy_id)',
+  `timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `details` JSON DEFAULT NULL COMMENT 'Optional details like data before/after change'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Audit log for sensitive user actions';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 --
 -- Table structure for table `agent`
 --
