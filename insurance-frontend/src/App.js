@@ -9,6 +9,13 @@ import AdminDashboard from './components/AdminDashboard';
 import WorkflowList from './components/WorkflowList'; // Import WorkflowList
 import WorkflowEditor from './components/WorkflowEditor'; // Import WorkflowEditor
 
+import AdjusterDashboard from "./components/AdjusterDashboard";
+import DocumentProcessor from "./components/DocumentProcessor";
+import HighRiskAlerts from "./components/HighRiskAlerts";
+import WorkflowMetricsDashboard from "./components/WorkflowMetricsDashboard";
+import OverdueTasksReport from "./components/OverdueTasksReport";
+
+
 function App() {
   // Use state to manage token, allows App to re-render on login/logout
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -145,6 +152,14 @@ function App() {
             }
           />
 
+
+           <Route path="/adjuster" element={<AdjusterDashboard />} />
+           <Route path="/documents" element={<DocumentProcessor />} />
+           <Route path="/alerts" element={<HighRiskAlerts />} />
+           <Route path="/metrics" element={<WorkflowMetricsDashboard />} />
+           <Route path="/overdue" element={<OverdueTasksReport />} />
+
+           
           {/* Fallback Route: Redirects any unknown path */}
           <Route
             path="*"

@@ -6,6 +6,10 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const saltRounds = 10; // Standard for bcrypt
 const jwt = require('jsonwebtoken');
+
+const multer = require('multer'); // --- NEW (IWAS-F-013)
+const fs = require('fs');         // --- NEW (IWAS-F-013)
+
 // v-- MODIFIED: Read secret from .env, with a fallback
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_12345';
 
@@ -1206,6 +1210,138 @@ app.delete('/api/admin/workflows/:workflowId', checkAuth, checkAdmin, async (req
     } finally {
          if (connection && connection.connection._closing === false) await connection.end();
     }
+});
+
+
+// (Your existing middlewares, workflow engine, and all routes remain the same)
+// Everything up to the last admin workflow route stays unchanged.
+// Just scroll to the end to find the new Epic 2 sections below 👇
+
+// ================================================================
+// =============== EPIC 2 FEATURE EXTENSIONS ======================
+// ================================================================
+
+// --- IWAS-F-012: Claims Adjuster Dashboard ---
+app.get('/api/adjuster/dashboard/:adminId', async (req, res) => {
+  let connection;
+  try {
+    const { adminId } = req.params;
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      `SELECT claim_id, customer_id, description, claim_status, amount, claim_date
+       FROM claim
+       WHERE admin_id = ?
+       ORDER BY claim_date DESC`,
+      [adminId]
+    );
+
+    res.json({ admin_id: adminId, assigned_claims: rows });
+  } catch (error) {
+    console.error('Error fetching adjuster dashboard:', error);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+// --- IWAS-F-013: Intelligent Document Processing (Mock) ---
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/api/documents/process', upload.single('document'), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const content = fs.readFileSync(filePath, 'utf8');
+
+    // Simple pattern extraction demo
+    const claimIdMatch = content.match(/Claim\s*ID:\s*(\w+)/i);
+    const amountMatch = content.match(/Amount:\s*\$?([\d,]+)/i);
+
+    const extracted = {
+      claim_id: claimIdMatch ? claimIdMatch[1] : null,
+      amount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : null,
+      confidence: 0.9
+    };
+
+    fs.unlinkSync(filePath); // clean up
+    res.json({ message: 'Document processed successfully', extracted });
+  } catch (error) {
+    console.error('Error processing document:', error);
+    res.status(500).json({ error: 'Document processing failed' });
+  }
+});
+
+// --- IWAS-F-014: High-Risk Claim Alerts ---
+app.get('/api/alerts/highrisk', async (req, res) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      `SELECT claim_id, customer_id, amount, claim_status, risk_score
+       FROM claim
+       WHERE amount > 1000000 OR risk_score > 8
+       ORDER BY amount DESC`
+    );
+
+    res.json({ high_risk_claims: rows });
+  } catch (error) {
+    console.error('Error fetching high-risk claims:', error);
+    res.status(500).json({ error: 'Internal server error fetching high-risk claims.' });
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+// --- IWAS-F-030: Workflow Metrics Dashboard ---
+app.get('/api/metrics/workflows', async (req, res) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(`
+      SELECT w.workflow_id, w.name AS workflow_name,
+             COUNT(c.claim_id) AS total_claims,
+             AVG(TIMESTAMPDIFF(HOUR, c.claim_date, NOW())) AS avg_processing_time_hrs
+      FROM workflows w
+      LEFT JOIN claim c ON w.workflow_id = c.workflow_id
+      GROUP BY w.workflow_id, w.name
+      ORDER BY total_claims DESC
+    `);
+
+    res.json({ metrics: rows });
+  } catch (error) {
+    console.error('Error fetching workflow metrics:', error);
+    res.status(500).json({ error: 'Internal server error fetching metrics.' });
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+// --- IWAS-F-031: SLA Overdue Task Report ---
+app.get('/api/reports/overdue-tasks', async (req, res) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(`
+      SELECT step_id, workflow_id, step_name, assigned_role,
+             due_date, NOW() AS current_time_value,
+             TIMESTAMPDIFF(HOUR, due_date, NOW()) AS hours_overdue
+      FROM workflow_steps
+      WHERE due_date IS NOT NULL
+        AND NOW() > due_date
+        AND (status IS NULL OR status != 'COMPLETED')
+      ORDER BY hours_overdue DESC
+    `);
+
+    res.json({ overdue_tasks: rows });
+  } catch (error) {
+    console.error('Error fetching overdue tasks:', error);
+    res.status(500).json({ error: 'Internal server error fetching overdue tasks.' });
+  } finally {
+    if (connection) await connection.end();
+  }
 });
 
 
