@@ -976,3 +976,30 @@ function AdminDashboard() {
 }
 
 export default AdminDashboard;
+
+*/
+
+/*bhargavi*/
+CREATE TABLE audit_log (
+  log_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(50),
+  user_type VARCHAR(50),
+  action_type VARCHAR(100),
+  entity_id VARCHAR(50),
+  details TEXT,
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE claim
+ADD COLUMN risk_score INT DEFAULT 0;
+
+
+/*for the overdue*/
+
+ALTER TABLE workflow_steps
+ADD COLUMN due_date DATETIME DEFAULT (NOW() + INTERVAL 3 DAY);
+
+ALTER TABLE workflow_steps
+ADD COLUMN assigned_role VARCHAR(50) DEFAULT 'Unassigned';
+
