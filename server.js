@@ -1,11 +1,17 @@
 // --- 1. Import Required Tools ---
+require('dotenv').config(); // <-- ADDED: Loads .env file
 const express = require('express');
 const mysql = require('mysql2/promise'); // Using the 'promise' version for modern async/await
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const saltRounds = 10; // Standard for bcrypt
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = 'your_super_secret_key_12345'; // Change this to a random, secure string
+
+const multer = require('multer'); // --- NEW (IWAS-F-013)
+const fs = require('fs');         // --- NEW (IWAS-F-013)
+
+// v-- MODIFIED: Read secret from .env, with a fallback
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_12345';
 
 
 // --- 2. Setup the Express App ---
@@ -22,10 +28,27 @@ const dbConfig = {
     password: 'app_password_123', // App user's password
     database: 'insurance_db_dev' // Development database
 };
+// --- AUDIT LOG HELPER FUNCTION (IWAS-F-042) ---
+const logAuditEvent = async (userId, userType, actionType, entityId = null, details = null) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute(
+            `INSERT INTO audit_log (user_id, user_type, action_type, entity_id, details)
+             VALUES (?, ?, ?, ?, ?)`,
+            [userId, userType, actionType, entityId, details ? JSON.stringify(details) : null]
+        );
+        console.log(`[AUDIT] User ${userId} (${userType}) performed ${actionType}` + (entityId ? ` on ${entityId}` : ''));
+    } catch (error) {
+        console.error('CRITICAL: Failed to write audit log entry:', error);
+    } finally {
+        if (connection) await connection.end();
+    }
+};
 
 
 // --- 4. Middleware ---
-
+// ... (Your existing checkAuth and checkAdmin middleware - no changes) ...
 // Middleware for checking the JWT token
 const checkAuth = (req, res, next) => {
     try {
@@ -61,6 +84,7 @@ const checkAdmin = (req, res, next) => {
 
 
 // --- 5. Workflow Engine Logic ---
+// ... (Your existing executeWorkflowStep logic - no changes) ...
 async function executeWorkflowStep(claimId) {
     let connection;
     console.log(`[WF Engine] Processing claim: ${claimId}`); // Added prefix for clarity
@@ -279,7 +303,7 @@ async function executeWorkflowStep(claimId) {
 
 
 // --- 6. Public API Endpoints ---
-
+// ... (Your existing /api/quote, /api/register, /api/login, /api/admin/login endpoints - no changes) ...
 // Quote Generation Endpoint
 app.post('/api/quote', async (req, res) => {
     let connection;
@@ -390,6 +414,8 @@ app.post('/api/login', async (req, res) => {
         const [rows] = await connection.execute( `SELECT * FROM customer WHERE email = ?`, [email] );
 
         if (rows.length === 0) {
+            // [AUDIT] Log failed login (user not found)
+            logAuditEvent(email, 'CUSTOMER', 'LOGIN_FAILED_USER_NOT_FOUND', null, { email: email });
             return res.status(401).json({ error: 'Invalid email or password' }); // User not found
         }
         const user = rows[0];
@@ -400,8 +426,13 @@ app.post('/api/login', async (req, res) => {
 
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         if (!isPasswordMatch) {
+            // [AUDIT] Log failed login (wrong password)
+            logAuditEvent(user.customer_id, 'CUSTOMER', 'LOGIN_FAILED_PASSWORD', null, { email: email });
             return res.status(401).json({ error: 'Invalid email or password' }); // Password mismatch
         }
+
+        // [AUDIT] Log successful login
+        logAuditEvent(user.customer_id, 'CUSTOMER', 'LOGIN_SUCCESS');
 
         // Generate JWT for customer
         const token = jwt.sign(
@@ -432,6 +463,8 @@ app.post('/api/admin/login', async (req, res) => {
         const [rows] = await connection.execute( `SELECT * FROM administrator WHERE email = ?`, [email] );
 
         if (rows.length === 0) {
+            // [AUDIT] Log failed admin login (user not found)
+            logAuditEvent(email, 'ADMIN', 'ADMIN_LOGIN_FAILED_USER_NOT_FOUND', null, { email: email });
             return res.status(401).json({ error: 'Invalid email or password' }); // Admin not found
         }
         const admin = rows[0];
@@ -442,8 +475,13 @@ app.post('/api/admin/login', async (req, res) => {
 
         const isPasswordMatch = await bcrypt.compare(password, admin.password);
         if (!isPasswordMatch) {
+            // [AUDIT] Log failed admin login (wrong password)
+            logAuditEvent(admin.admin_id, 'ADMIN', 'ADMIN_LOGIN_FAILED_PASSWORD', null, { email: email });
             return res.status(401).json({ error: 'Invalid email or password' }); // Password mismatch
         }
+
+        // [AUDIT] Log successful admin login
+        logAuditEvent(admin.admin_id, 'ADMIN', 'ADMIN_LOGIN_SUCCESS');
 
         // Generate JWT for admin
         const token = jwt.sign(
@@ -461,10 +499,10 @@ app.post('/api/admin/login', async (req, res) => {
     }
 });
 
-
 // --- 7. Secure Customer API Endpoints ---
 
 // Get Claims for Logged-in Customer
+// ... (Your existing /api/my-claims GET endpoint - no changes) ...
 app.get('/api/my-claims', checkAuth, async (req, res) => {
     let connection;
     try {
@@ -486,7 +524,9 @@ app.get('/api/my-claims', checkAuth, async (req, res) => {
     }
 });
 
+
 // File a New Claim for Logged-in Customer (Triggers Workflow)
+// ... (Your existing /api/my-claims POST endpoint - no changes) ...
 app.post('/api/my-claims', checkAuth, async (req, res) => {
     let connection;
     let claim_id; // Define claim_id outside try for use in triggering
@@ -546,8 +586,105 @@ app.post('/api/my-claims', checkAuth, async (req, res) => {
 });
 
 
-// --- 8. Secure Admin API Endpoints ---
+// --- [NEW] Get Policies for Logged-in Customer ---
+app.get('/api/my-policies', checkAuth, async (req, res) => {
+    let connection;
+    try {
+        if (req.user.isAdmin) return res.status(403).json({ error: 'Access denied.' });
+        const customer_id = req.user.customer_id;
 
+        connection = await mysql.createConnection(dbConfig);
+        // Join customer_policy with policy to get details
+        const [rows] = await connection.execute(
+            `SELECT p.policy_id, p.policy_type, p.premium_amount, p.status, p.start_date, p.end_date
+             FROM policy p
+             JOIN customer_policy cp ON p.policy_id = cp.policy_id
+             WHERE cp.customer_id = ?
+             ORDER BY p.policy_date DESC`,
+            [customer_id]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching customer policies:', error);
+        res.status(500).json({ error: 'Internal server error fetching policies.' });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+
+// --- [NEW] Mock Policy Activation Endpoint ---
+app.post('/api/policies/:policyId/mock-activate', checkAuth, async (req, res) => {
+    let connection;
+    const { policyId } = req.params;
+    const customer_id = req.user.customer_id; // Get customer ID from authenticated user
+
+    if (req.user.isAdmin) return res.status(403).json({ error: 'Admins cannot activate customer policies.' });
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        // 1. Verify policy exists, belongs to the customer, and needs payment
+        const [policyRows] = await connection.execute(
+            `SELECT p.policy_id, p.premium_amount, p.status
+             FROM policy p
+             JOIN customer_policy cp ON p.policy_id = cp.policy_id
+             WHERE p.policy_id = ? AND cp.customer_id = ? FOR UPDATE`, // Lock row
+            [policyId, customer_id]
+        );
+
+        if (policyRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Policy not found or does not belong to this customer.' });
+        }
+
+        const policy = policyRows[0];
+        const amountToPay = policy.premium_amount;
+
+        if (policy.status !== 'INACTIVE_AWAITING_PAYMENT') {
+            await connection.rollback();
+            return res.status(400).json({ error: `Policy status is "${policy.status}", activation not required or already active.` });
+        }
+        
+        // 2. Create a 'SUCCESS' record in initial_payment table immediately
+        const payment_id = 'MOCKPAY_' + Date.now();
+        const transaction_id = 'MOCK_TXN_' + Date.now();
+        
+        await connection.execute(
+            `INSERT INTO initial_payment (payment_id, policy_id, customer_id, amount, payment_gateway, transaction_id, payment_status)
+             VALUES (?, ?, ?, ?, 'MOCK_PAYMENT', ?, 'SUCCESS')`,
+            [payment_id, policyId, customer_id, amountToPay, transaction_id]
+        );
+
+        // 3. Update the policy status to ACTIVE
+        await connection.execute(
+            `UPDATE policy SET status = 'ACTIVE'
+             WHERE policy_id = ? AND status = 'INACTIVE_AWAITING_PAYMENT'`,
+            [policyId]
+        );
+
+        await connection.commit();
+
+        // 4. Send success response
+        res.json({
+            message: 'Policy activated successfully (mock payment)!',
+            paymentId: payment_id,
+            transaction_id: transaction_id
+         });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error(`Error in mock activation for policy ${policyId}:`, error);
+        res.status(500).json({ error: 'Internal server error during mock activation.' });
+    } finally {
+        if (connection && connection.connection._closing === false) await connection.end();
+    }
+});
+
+
+// --- 8. Secure Admin API Endpoints ---
+// ... (Your existing Admin endpoints - no changes) ...
 // Get All PENDING Claims (Admin Only)
 app.get('/api/admin/pending-claims', checkAuth, checkAdmin, async (req, res) => {
     let connection;
@@ -575,9 +712,10 @@ app.patch('/api/admin/claims/:claimId', checkAuth, checkAdmin, async (req, res) 
     let connection;
     const claimId = req.params.claimId; // Define claimId in outer scope
     let nextStepOrder = null; // Define nextStepOrder in outer scope
-    try {
-        const { newStatus } = req.body;
+    const { newStatus } = req.body; // Get newStatus early
+    const adminId = req.user.admin_id; // Get adminId from JWT
 
+    try {
         if (newStatus !== 'APPROVED' && newStatus !== 'DECLINED') {
             return res.status(400).json({ error: 'Invalid status provided. Must be APPROVED or DECLINED.' });
         }
@@ -586,11 +724,14 @@ app.patch('/api/admin/claims/:claimId', checkAuth, checkAdmin, async (req, res) 
         await connection.beginTransaction();
 
         // 1. Get current step order and workflow ID (Lock row)
-        const [claimRows] = await connection.execute('SELECT current_step_order, workflow_id FROM claim WHERE claim_id = ? AND claim_status = \'PENDING\' FOR UPDATE', [claimId]);
+        const [claimRows] = await connection.execute('SELECT current_step_order, workflow_id, claim_status FROM claim WHERE claim_id = ? AND claim_status = \'PENDING\' FOR UPDATE', [claimId]);
+        
         if (claimRows.length === 0) {
              await connection.rollback();
              return res.status(404).json({ error: 'Claim not found or was not in PENDING status.' }); // More specific error
         }
+        
+        const oldStatus = claimRows[0].claim_status; // Should be 'PENDING'
         const currentStepBeforeUpdate = claimRows[0].current_step_order;
         const workflowId = claimRows[0].workflow_id;
 
@@ -612,24 +753,24 @@ app.patch('/api/admin/claims/:claimId', checkAuth, checkAdmin, async (req, res) 
         }
 
         // 3. Update the claim status, log, and step order
-        const logMessage = `\nClaim ${newStatus.toLowerCase()} by admin ${req.user.admin_id}.`; // Assumes checkAuth added req.user
+        const logMessage = `\nClaim ${newStatus.toLowerCase()} by admin ${adminId}.`;
         const [result] = await connection.execute(
             `UPDATE claim SET claim_status = ?, status_log = CONCAT(IFNULL(status_log, ''), ?), current_step_order = ?
-             WHERE claim_id = ? AND claim_status = 'PENDING'`, // Double-check it's still pending
+             WHERE claim_id = ? AND claim_status = 'PENDING'`,
             [newStatus, logMessage, nextStepOrder, claimId]
         );
 
-        // Check if update happened (might have been processed by another request between SELECT FOR UPDATE and UPDATE)
         if (result.affectedRows === 0) {
             await connection.rollback();
-            // It's possible the status changed between the SELECT FOR UPDATE and the UPDATE,
-            // although less likely with FOR UPDATE. Send a conflict or not found status.
             return res.status(409).json({ error: 'Claim status might have changed, or claim not found.' });
         }
 
         await connection.commit(); // Commit the transaction
-        await connection.end(); // Close connection BEFORE triggering workflow
+        await connection.end(); // Close connection BEFORE logging and triggering workflow
 
+        // --- [NEW] AUDIT LOGGING ---
+        // Log this sensitive action AFTER the transaction is committed
+        logAuditEvent(adminId, 'ADMIN', `CLAIM_STATUS_UPDATE_${newStatus}`, claimId, { oldStatus: oldStatus, newStatus: newStatus });
 
         res.json({ message: `Claim ${claimId} status updated to ${newStatus}.` });
 
@@ -649,9 +790,124 @@ app.patch('/api/admin/claims/:claimId', checkAuth, checkAdmin, async (req, res) 
     }
 });
 
+// Get All PENDING Policies (Admin Only)
+app.get('/api/admin/pending-policies', checkAuth, checkAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        // Join with administrator table to get the name of the initial approver, if one exists
+        const [rows] = await connection.execute(
+            `SELECT 
+                p.policy_id, 
+                p.policy_type, 
+                p.premium_amount,
+                p.status, 
+                p.initial_approver_id,
+                a.name as initial_approver_name,
+                p.initial_approval_date
+             FROM policy p
+             LEFT JOIN administrator a ON p.initial_approver_id = a.admin_id
+             WHERE p.status = 'PENDING_INITIAL_APPROVAL' OR p.status = 'PENDING_FINAL_APPROVAL'
+             ORDER BY p.policy_date ASC`
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching pending policies:', error);
+        res.status(500).json({ error: 'Internal server error fetching pending policies.' });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+
+app.patch('/api/admin/policies/:policyId/approve', checkAuth, checkAdmin, async (req, res) => {
+    let connection;
+    const { policyId } = req.params;
+    const { admin_id: currentAdminId, role: currentAdminRole } = req.user; // Get details from JWT
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        // 1. Get the current policy state (and lock the row)
+        const [policyRows] = await connection.execute(
+            'SELECT policy_id, status, initial_approver_id FROM policy WHERE policy_id = ? FOR UPDATE',
+            [policyId]
+        );
+
+        if (policyRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Policy not found.' });
+        }
+        
+        const policy = policyRows[0];
+        let logMessage = "";
+        let newStatus = "";
+
+        // 2. State Machine Logic
+        if (policy.status === 'PENDING_INITIAL_APPROVAL') {
+            // --- Action: Initial Approval ---
+            newStatus = 'PENDING_FINAL_APPROVAL';
+            await connection.execute(
+                `UPDATE policy SET 
+                    status = ?, 
+                    initial_approver_id = ?, 
+                    initial_approval_date = NOW()
+                 WHERE policy_id = ?`,
+                [newStatus, currentAdminId, policyId]
+            );
+            logMessage = `Policy ${policyId} moved to PENDING_FINAL_APPROVAL by ${currentAdminId}.`;
+
+        } else if (policy.status === 'PENDING_FINAL_APPROVAL') {
+            // --- Action: Final Approval (with checks) ---
+            
+            // Check 1: Role check
+            if (currentAdminRole !== 'Security Officer') {
+                await connection.rollback();
+                return res.status(403).json({ error: 'Forbidden: Final approval requires "Security Officer" role.' });
+            }
+
+            // Check 2: Four-Eyes check (different user)
+            if (policy.initial_approver_id === currentAdminId) {
+                await connection.rollback();
+                return res.status(403).json({ error: 'Forbidden: Four-eyes principle violation. Final approver must be different from the initial approver.' });
+            }
+
+            // All checks passed
+            newStatus = 'APPROVED';
+            await connection.execute(
+                `UPDATE policy SET 
+                    status = ?, 
+                    final_approver_id = ?, 
+                    final_approval_date = NOW()
+                 WHERE policy_id = ?`,
+                [newStatus, currentAdminId, policyId]
+            );
+            logMessage = `Policy ${policyId} has been fully APPROVED by ${currentAdminId}.`;
+
+        } else {
+            // --- Action: No action needed ---
+            await connection.rollback();
+            return res.status(400).json({ error: `Policy is in status "${policy.status}" and cannot be approved.` });
+        }
+
+        // 3. Commit and respond
+        await connection.commit();
+        console.log(logMessage);
+        res.json({ message: 'Policy approval status updated successfully!', newState: newStatus });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error(`Error approving policy ${policyId}:`, error);
+        res.status(500).json({ error: 'Internal server error during policy approval.' });
+    } finally {
+        if (connection && connection.connection._closing === false) await connection.end();
+    }
+});
+
 
 // --- 9. Admin Endpoints for Workflow Management ---
-
+// ... (Your existing Workflow endpoints - no changes) ...
 // Get all workflows
 app.get('/api/admin/workflows', checkAuth, checkAdmin, async (req, res) => {
     let connection;
@@ -954,6 +1210,138 @@ app.delete('/api/admin/workflows/:workflowId', checkAuth, checkAdmin, async (req
     } finally {
          if (connection && connection.connection._closing === false) await connection.end();
     }
+});
+
+
+// (Your existing middlewares, workflow engine, and all routes remain the same)
+// Everything up to the last admin workflow route stays unchanged.
+// Just scroll to the end to find the new Epic 2 sections below 👇
+
+// ================================================================
+// =============== EPIC 2 FEATURE EXTENSIONS ======================
+// ================================================================
+
+// --- IWAS-F-012: Claims Adjuster Dashboard ---
+app.get('/api/adjuster/dashboard/:adminId', async (req, res) => {
+  let connection;
+  try {
+    const { adminId } = req.params;
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      `SELECT claim_id, customer_id, description, claim_status, amount, claim_date
+       FROM claim
+       WHERE admin_id = ?
+       ORDER BY claim_date DESC`,
+      [adminId]
+    );
+
+    res.json({ admin_id: adminId, assigned_claims: rows });
+  } catch (error) {
+    console.error('Error fetching adjuster dashboard:', error);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+// --- IWAS-F-013: Intelligent Document Processing (Mock) ---
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/api/documents/process', upload.single('document'), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const content = fs.readFileSync(filePath, 'utf8');
+
+    // Simple pattern extraction demo
+    const claimIdMatch = content.match(/Claim\s*ID:\s*(\w+)/i);
+    const amountMatch = content.match(/Amount:\s*\$?([\d,]+)/i);
+
+    const extracted = {
+      claim_id: claimIdMatch ? claimIdMatch[1] : null,
+      amount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : null,
+      confidence: 0.9
+    };
+
+    fs.unlinkSync(filePath); // clean up
+    res.json({ message: 'Document processed successfully', extracted });
+  } catch (error) {
+    console.error('Error processing document:', error);
+    res.status(500).json({ error: 'Document processing failed' });
+  }
+});
+
+// --- IWAS-F-014: High-Risk Claim Alerts ---
+app.get('/api/alerts/highrisk', async (req, res) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      `SELECT claim_id, customer_id, amount, claim_status, risk_score
+       FROM claim
+       WHERE amount > 1000000 OR risk_score > 8
+       ORDER BY amount DESC`
+    );
+
+    res.json({ high_risk_claims: rows });
+  } catch (error) {
+    console.error('Error fetching high-risk claims:', error);
+    res.status(500).json({ error: 'Internal server error fetching high-risk claims.' });
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+// --- IWAS-F-030: Workflow Metrics Dashboard ---
+app.get('/api/metrics/workflows', async (req, res) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(`
+      SELECT w.workflow_id, w.name AS workflow_name,
+             COUNT(c.claim_id) AS total_claims,
+             AVG(TIMESTAMPDIFF(HOUR, c.claim_date, NOW())) AS avg_processing_time_hrs
+      FROM workflows w
+      LEFT JOIN claim c ON w.workflow_id = c.workflow_id
+      GROUP BY w.workflow_id, w.name
+      ORDER BY total_claims DESC
+    `);
+
+    res.json({ metrics: rows });
+  } catch (error) {
+    console.error('Error fetching workflow metrics:', error);
+    res.status(500).json({ error: 'Internal server error fetching metrics.' });
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+// --- IWAS-F-031: SLA Overdue Task Report ---
+app.get('/api/reports/overdue-tasks', async (req, res) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(`
+      SELECT step_id, workflow_id, step_name, assigned_role,
+             due_date, NOW() AS current_time_value,
+             TIMESTAMPDIFF(HOUR, due_date, NOW()) AS hours_overdue
+      FROM workflow_steps
+      WHERE due_date IS NOT NULL
+        AND NOW() > due_date
+        AND (status IS NULL OR status != 'COMPLETED')
+      ORDER BY hours_overdue DESC
+    `);
+
+    res.json({ overdue_tasks: rows });
+  } catch (error) {
+    console.error('Error fetching overdue tasks:', error);
+    res.status(500).json({ error: 'Internal server error fetching overdue tasks.' });
+  } finally {
+    if (connection) await connection.end();
+  }
 });
 
 

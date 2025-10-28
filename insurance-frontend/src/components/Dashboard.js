@@ -1,61 +1,175 @@
 import React, { useState, useEffect } from 'react';
-import FileClaim from './FileClaim'; // 👈 IMPORTED
+import FileClaim from './FileClaim'; // 👈 You already have this
 
 function Dashboard() {
+  // State for Claims
   const [claims, setClaims] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadingClaims, setLoadingClaims] = useState(true);
+  const [errorClaims, setErrorClaims] = useState(null);
 
-  // 1. Moved fetchClaims out so we can call it again
+  // --- NEW: State for Policies ---
+  const [policies, setPolicies] = useState([]);
+  const [loadingPolicies, setLoadingPolicies] = useState(true);
+  const [errorPolicies, setErrorPolicies] = useState(null);
+  const [activationStatus, setActivationStatus] = useState({}); // For row-level status
+
+  // 1. fetchClaims (your existing function, renamed loading/error)
   const fetchClaims = async () => {
     try {
-      setLoading(true); // Show loading while we refetch
+      setLoadingClaims(true);
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:3001/api/my-claims', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        throw new Error('Could not fetch claims.');
-      }
-
+      if (!response.ok) throw new Error('Could not fetch claims.');
       const data = await response.json();
       setClaims(data);
     } catch (err) {
-      setError(err.message);
+      setErrorClaims(err.message);
     } finally {
-      setLoading(false);
+      setLoadingClaims(false);
     }
   };
 
-  // 2. useEffect now just calls fetchClaims once on load
+  // --- NEW: fetchPolicies ---
+  const fetchPolicies = async () => {
+    try {
+      setLoadingPolicies(true);
+      setErrorPolicies(null); // Clear previous errors
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3001/api/my-policies', { // Use the new endpoint
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+           const data = await response.json();
+           throw new Error(data.error || 'Could not fetch policies.');
+      }
+      const data = await response.json();
+      setPolicies(data);
+    } catch (err) {
+      setErrorPolicies(err.message);
+    } finally {
+      setLoadingPolicies(false);
+    }
+  };
+
+  // 2. useEffect now calls both
   useEffect(() => {
     fetchClaims();
-  }, []); // The empty array [] means "run this only once"
+    fetchPolicies(); // <-- ADDED
+  }, []); 
 
-  // 3. This function will be passed to the form
+  // 3. handleClaimFiled (your existing function)
   const handleClaimFiled = () => {
     fetchClaims(); // This refreshes the claims list
   };
 
-  // Render the component
-  if (error) return <div className="error">{error}</div>;
+  // --- NEW: handleActivatePolicy (Mock Payment) ---
+  const handleActivatePolicy = async (policyId) => {
+    // Show a simple confirmation for the mock payment
+    if (!window.confirm("This is a mock payment.\nDo you want to simulate a successful payment and activate this policy?")) {
+      return;
+    }
 
+    setActivationStatus(prev => ({ ...prev, [policyId]: 'Activating...' }));
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/policies/${policyId}/mock-activate`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Could not activate policy.');
+      }
+
+      // Success! Refresh the policy list to show the new "ACTIVE" status
+      console.log('Mock activation successful:', data.message);
+      setActivationStatus(prev => ({ ...prev, [policyId]: 'Activated!' }));
+      fetchPolicies(); // Refresh the list
+
+    } catch (err) {
+      console.error('Mock Activation Error:', err);
+      setActivationStatus(prev => ({ ...prev, [policyId]: `Error: ${err.message}` }));
+    }
+  };
+
+
+  // --- Render ---
   return (
     <div className="dashboard-container">
-      {/* 4. ADDED THE FILE CLAIM FORM HERE */}
+      
+      {/* --- NEW: Policies Section --- */}
+      <h2>My Policies</h2>
+      {loadingPolicies ? (
+        <div>Loading policies...</div>
+      ) : errorPolicies ? (
+        <div className="error">{errorPolicies}</div>
+      ) : policies.length === 0 ? (
+        <p>You do not have any policies yet.</p>
+      ) : (
+        <table className="claims-table" style={{ marginBottom: '40px' }}>
+          <thead>
+            <tr>
+              <th>Policy ID</th>
+              <th>Type</th>
+              <th>Premium</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {policies.map(policy => {
+              const statusMsg = activationStatus[policy.policy_id];
+              return (
+                <tr key={policy.policy_id}>
+                  <td>{policy.policy_id}</td>
+                  <td>{policy.policy_type}</td>
+                  <td>${parseFloat(policy.premium_amount).toFixed(2)}</td>
+                  <td>
+                    <span className={`status status-${policy.status.toLowerCase().replace(/_/g, '-')}`}>
+                       {policy.status.replace(/_/g, ' ')} {/* Make status more readable */}
+                    </span>
+                  </td>
+                  <td>
+                    {/* Show button ONLY if payment is needed */}
+                    {policy.status === 'INACTIVE_AWAITING_PAYMENT' && !statusMsg && (
+                      <button
+                        className="action-button approve-button" // Using approve style
+                        onClick={() => handleActivatePolicy(policy.policy_id)}
+                      >
+                        Activate (Mock Pay)
+                      </button>
+                    )}
+                    {/* Show status message during/after activation attempt */}
+                    {statusMsg && (
+                      <span className={statusMsg.startsWith('Error') ? 'error-inline' : 'loading-inline'}>
+                        {statusMsg}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+
+      {/* --- Existing Claims Section --- */}
       <FileClaim onClaimFiled={handleClaimFiled} />
 
       <h2 style={{marginTop: '40px'}}>My Claims</h2>
-      {loading ? (
+      {loadingClaims ? (
         <div>Loading claims...</div>
+      ) : errorClaims ? (
+         <div className="error">{errorClaims}</div>
       ) : claims.length === 0 ? (
         <p>You have not filed any claims yet.</p>
       ) : (
         <table className="claims-table">
-          {/* ... (table code is unchanged) ... */}
           <thead>
             <tr>
               <th>Claim ID</th>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode'; // Ensure you have installed this: npm install jwt-decode
 import './App.css'; // Your CSS file
 import LoginPage from './components/LoginPage';
@@ -8,6 +8,13 @@ import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import WorkflowList from './components/WorkflowList'; // Import WorkflowList
 import WorkflowEditor from './components/WorkflowEditor'; // Import WorkflowEditor
+
+import AdjusterDashboard from "./components/AdjusterDashboard";
+import DocumentProcessor from "./components/DocumentProcessor";
+import HighRiskAlerts from "./components/HighRiskAlerts";
+import WorkflowMetricsDashboard from "./components/WorkflowMetricsDashboard";
+import OverdueTasksReport from "./components/OverdueTasksReport";
+
 
 function App() {
   // Use state to manage token, allows App to re-render on login/logout
@@ -55,8 +62,6 @@ function App() {
 
   // --- Reusable Layout Component with Navbar for Logged-In Users ---
   const AppShell = ({ children }) => {
-    // We get navigate from useNavigate hook for the button action
-    const navigate = useNavigate();
     // Use the handleLogout from the App component scope
     const handleLogoutAndRedirect = () => {
       handleLogout();
@@ -147,6 +152,14 @@ function App() {
             }
           />
 
+
+           <Route path="/adjuster" element={<AdjusterDashboard />} />
+           <Route path="/documents" element={<DocumentProcessor />} />
+           <Route path="/alerts" element={<HighRiskAlerts />} />
+           <Route path="/metrics" element={<WorkflowMetricsDashboard />} />
+           <Route path="/overdue" element={<OverdueTasksReport />} />
+
+           
           {/* Fallback Route: Redirects any unknown path */}
           <Route
             path="*"
