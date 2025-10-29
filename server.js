@@ -2,6 +2,7 @@
 require('dotenv').config(); // <-- ADDED: Loads .env file
 const express = require('express');
 const mysql = require('mysql2/promise'); // Using the 'promise' version for modern async/await
+const cron = require('node-cron');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const saltRounds = 10; // Standard for bcrypt
@@ -9,8 +10,6 @@ const jwt = require('jsonwebtoken');
 
 const multer = require('multer'); // --- NEW (IWAS-F-013)
 const fs = require('fs');         // --- NEW (IWAS-F-013)
-
-// v-- MODIFIED: Read secret from .env, with a fallback
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_12345';
 
 
@@ -46,6 +45,103 @@ const logAuditEvent = async (userId, userType, actionType, entityId = null, deta
     }
 };
 
+// --- 4. Notification Sending Job (IWAS-F-041) ---
+// (Runs every 1 minute for easy testing. Change to '*/5 * * * *' for 5 mins in prod)
+// Notification Scheduler Job - Check every 10 seconds
+// Notification Scheduler Job - Check every 10 seconds
+const task = cron.schedule('*/10 * * * * *', async () => {
+    let connection;
+    try {
+        console.log('[NotificationJob] Running scheduled notification check...');
+        
+        connection = await mysql.createConnection({
+            host: 'localhost',
+            user: 'root',
+            password: process.env.DB_PASSWORD ||'', // your password
+            database: 'insurance_db_dev'
+        });
+        
+        // Query for pending notifications
+        const [reminders] = await connection.execute(`
+            SELECT r.notification_id, r.message, r.type, r.customer_id, 
+                   c.email, c.phone, c.notification_preference_channel
+            FROM reminder r 
+            JOIN customer c ON r.customer_id = c.customer_id 
+            WHERE r.status = 'PENDING' AND r.notification_date <= NOW()
+        `);
+
+        if (reminders.length === 0) {
+            console.log('[NotificationJob] No pending notifications found.');
+            return;
+        }
+
+        console.log(`[NotificationJob] Found ${reminders.length} notifications to send.`);
+
+        // Process each reminder
+        for (const reminder of reminders) {
+            try {
+                // Simulate sending notification based on customer preference
+                let sent = false;
+                let channelUsed = '';
+
+                if (reminder.notification_preference_channel === 'EMAIL' || 
+                    reminder.notification_preference_channel === 'BOTH') {
+                    console.log(`---> [EmailSim] Sending '${reminder.type}' to ${reminder.email}: "${reminder.message}"`);
+                    sent = true;
+                    channelUsed = 'EMAIL';
+                }
+
+                if (reminder.notification_preference_channel === 'SMS' || 
+                    reminder.notification_preference_channel === 'BOTH') {
+                    console.log(`---> [SmsSim] Sending '${reminder.type}' to ${reminder.phone}: "${reminder.message}"`);
+                    sent = true;
+                    channelUsed = channelUsed ? 'BOTH' : 'SMS';
+                }
+
+                if (sent) {
+                    // Update reminder status to SENT
+                    await connection.execute(
+                        'UPDATE reminder SET status = "SENT", sent_timestamp = NOW() WHERE notification_id = ?',
+                        [reminder.notification_id]
+                    );
+                    console.log(`[NotificationJob] Marked ${reminder.notification_id} as SENT.`);
+                } else {
+                    // If no channels available, mark as failed
+                    await connection.execute(
+                        'UPDATE reminder SET status = "FAILED", sent_timestamp = NOW() WHERE notification_id = ?',
+                        [reminder.notification_id]
+                    );
+                    console.log(`[NotificationJob] Marked ${reminder.notification_id} as FAILED (no delivery channels).`);
+                }
+
+            } catch (reminderError) {
+                console.error(`[NotificationJob] Error processing reminder ${reminder.notification_id}:`, reminderError.message);
+                
+                // Mark as failed if there's an error processing
+                try {
+                    await connection.execute(
+                        'UPDATE reminder SET status = "FAILED", sent_timestamp = NOW() WHERE notification_id = ?',
+                        [reminder.notification_id]
+                    );
+                } catch (updateError) {
+                    console.error(`[NotificationJob] Failed to update status for ${reminder.notification_id}:`, updateError.message);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('[NotificationJob] Error querying or processing reminders:', error);
+    } finally {
+        // Always close the connection
+        if (connection) {
+            try {
+                await connection.end();
+            } catch (closeError) {
+                console.error('[NotificationJob] Error closing connection:', closeError.message);
+            }
+        }
+    }
+});
 
 // --- 4. Middleware ---
 // ... (Your existing checkAuth and checkAdmin middleware - no changes) ...
@@ -585,8 +681,35 @@ app.post('/api/my-claims', checkAuth, async (req, res) => {
     }
 });
 
+// --- Get Notifications for Logged-in Customer (IWAS-F-041) ---
+app.get('/api/my-notifications', checkAuth, async (req, res) => {
+  let connection;
+  try {
+    if (req.user.isAdmin) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const customer_id = req.user.customer_id;
 
-// --- [NEW] Get Policies for Logged-in Customer ---
+    connection = await mysql.createConnection(dbConfig);
+    // Fetch recent, SENT notifications for this user
+    const [rows] = await connection.execute(
+      `SELECT notification_id, message, type, sent_timestamp 
+       FROM reminder 
+       WHERE customer_id = ? AND status = 'SENT'
+       ORDER BY sent_timestamp DESC 
+       LIMIT 10`, // Get the 10 most recent
+      [customer_id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Internal server error fetching notifications.' });
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+// --- Get Policies for Logged-in Customer ---
 app.get('/api/my-policies', checkAuth, async (req, res) => {
     let connection;
     try {
