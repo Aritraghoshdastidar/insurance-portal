@@ -397,6 +397,8 @@ CREATE TABLE `workflow_steps` (
   `step_name` varchar(100) DEFAULT NULL,
   `task_type` enum('MANUAL','API','RULE') DEFAULT NULL,
   `configuration` json DEFAULT NULL,
+  `due_date` datetime DEFAULT (NOW() + INTERVAL 3 DAY),  
+  `assigned_role` varchar(50) DEFAULT 'Unassigned', 
   PRIMARY KEY (`step_id`),
   UNIQUE KEY `workflow_id_step_order` (`workflow_id`,`step_order`),
   CONSTRAINT `workflow_steps_ibfk_1` FOREIGN KEY (`workflow_id`) REFERENCES `workflows` (`workflow_id`)
@@ -432,6 +434,7 @@ CREATE TABLE `claim` (
   `admin_id` varchar(50) DEFAULT NULL,
   `workflow_id` varchar(50) DEFAULT NULL,
   `current_step_order` int DEFAULT '1',
+  `risk_score` int DEFAULT '0',
   PRIMARY KEY (`claim_id`),
   KEY `policy_id` (`policy_id`),
   KEY `customer_id` (`customer_id`),
@@ -609,6 +612,41 @@ END $$
 /*!50003 SET character_set_results = @saved_cs_results */ $$
 /*!50003 SET collation_connection  = @saved_col_connection */ $$
 
+DELIMITER ;
+
+-- Compatibility layer for legacy audit_log code
+CREATE VIEW bhargavi_audit_log AS 
+SELECT 
+    audit_log_id as log_id,
+    user_id,
+    user_type,
+    action_type,
+    entity_id,
+    details,
+    timestamp
+FROM audit_log;
+
+DELIMITER //
+CREATE TRIGGER instead_of_insert_bhargavi_audit_log
+INSTEAD OF INSERT ON bhargavi_audit_log
+FOR EACH ROW
+BEGIN
+    -- Convert user_type to uppercase and validate
+    SET @valid_user_type = UPPER(NEW.user_type);
+    IF @valid_user_type NOT IN ('CUSTOMER', 'ADMIN') THEN
+        SET @valid_user_type = 'CUSTOMER'; -- Default fallback
+    END IF;
+    
+    -- Convert text details to JSON object if not valid JSON
+    IF NEW.details IS NOT NULL AND JSON_VALID(NEW.details) = 0 THEN
+        SET @converted_details = JSON_OBJECT('legacy_text', NEW.details);
+    ELSE
+        SET @converted_details = NEW.details;
+    END IF;
+    
+    INSERT INTO audit_log (user_id, user_type, action_type, entity_id, details)
+    VALUES (NEW.user_id, @valid_user_type, NEW.action_type, NEW.entity_id, @converted_details);
+END//
 DELIMITER ;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
