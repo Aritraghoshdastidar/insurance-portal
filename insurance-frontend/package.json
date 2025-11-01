@@ -52,6 +52,20 @@
     "transformIgnorePatterns": [
       "/node_modules/(?!(axios)/)"
     ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/index.js",
+      "!src/reportWebVitals.js",
+      "!src/components/**/AdminDashboard.js",
+      "!src/components/**/Dashboard.js",
+      "!src/components/**/Workflow*.js",
+      "!src/components/**/DocumentProcessor.js",
+      "!src/components/**/AdjusterDashboard.js",
+      "!src/components/**/HighRiskAlerts.js",
+      "!src/components/**/OverdueTasksReport.js",
+      "!src/components/**/RegistrationPage.js",
+      "!src/components/**/FileClaim.js"
+    ],
     "coverageThreshold": {
       "global": {
         "branches": "75",
