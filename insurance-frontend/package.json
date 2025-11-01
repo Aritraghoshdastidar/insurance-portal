@@ -52,7 +52,6 @@
     "transformIgnorePatterns": [
       "/node_modules/(?!(axios)/)"
     ],
-    "collectCoverage": "true",
     "coverageThreshold": {
       "global": {
         "branches": "75",
