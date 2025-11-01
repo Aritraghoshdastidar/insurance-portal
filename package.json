@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "jest --detectOpenHandles"
+    "test": "jest --config=jest.config.js --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
@@ -32,15 +32,6 @@
     "presets": [
       "@babel/preset-env",
       "@babel/preset-react"
-    ]
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(js|jsx)$": "babel-jest"
-    },
-    "moduleFileExtensions": [
-      "js",
-      "jsx"
     ]
   }
 }
