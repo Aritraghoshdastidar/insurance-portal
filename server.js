@@ -1062,11 +1062,15 @@ app.get('/api/admin/workflows/:workflowId', checkAuth, checkAdmin, async (req, r
          );
 
         const workflowData = workflowRows[0];
+        
         // Safely parse configuration JSON for each step
         workflowData.steps = stepsRows.map(step => {
              let config = {};
              try {
-                  config = step.configuration ? JSON.parse(step.configuration) : {};
+                  // ✅ FIX: Check if configuration is a string before parsing
+                  config = (typeof step.configuration === 'string')
+                               ? JSON.parse(step.configuration || '{}')
+                               : (step.configuration || {}); // Use as-is if already an object
              } catch(e) {
                   console.error(`Invalid JSON configuration for step ${step.step_id}: ${step.configuration}`);
                   // Return empty object or specific error structure if needed
@@ -1077,6 +1081,90 @@ app.get('/api/admin/workflows/:workflowId', checkAuth, checkAdmin, async (req, r
     } catch (error) {
         console.error(`Error fetching workflow ${req.params.workflowId}:`, error);
         res.status(500).json({ error: 'Internal server error fetching workflow.' });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// PUT endpoint to save workflow definition
+app.put('/api/admin/workflows/:workflowId/definition', checkAuth, checkAdmin, async (req, res) => {
+    let connection;
+    const { workflowId } = req.params;
+    const { definition } = req.body; 
+
+    // --- DEBUG LOGGING 1 ---
+    console.log(`[SAVE /api/admin/workflows/${workflowId}/definition] Received request.`);
+
+    if (!definition || typeof definition !== 'object') {
+        console.log('[SAVE] Request failed: Invalid definition format.');
+        return res.status(400).json({ error: 'Invalid workflow definition format provided.' });
+    }
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        console.log('[SAVE] Database connection created.');
+
+        const sql = 'UPDATE workflows SET definition_json = ? WHERE workflow_id = ?';
+        const params = [JSON.stringify(definition), workflowId];
+
+        // --- DEBUG LOGGING 2 ---
+        console.log(`[SAVE] Executing SQL: ${sql}`);
+        console.log(`[SAVE] With Params: ${JSON.stringify(params)}`);
+
+        const [result] = await connection.execute(sql, params);
+
+        // --- DEBUG LOGGING 3 (THE MOST IMPORTANT ONE) ---
+        console.log('[SAVE] SQL execute result:', JSON.stringify(result));
+
+        if (result.affectedRows === 0) {
+            console.log(`[SAVE] Save failed: Workflow ID ${workflowId} not found. (AffectedRows = 0)`);
+            return res.status(404).json({ error: `Workflow ID ${workflowId} not found.` });
+        }
+        
+        console.log(`[SAVE] Save successful for ${workflowId}.`);
+        res.json({ message: `Workflow definition for ${workflowId} updated successfully.` });
+
+    } catch (error) {
+        // --- DEBUG LOGGING 4 ---
+        console.error(`[SAVE] CRITICAL ERROR for ${workflowId}:`, error);
+        res.status(500).json({ error: 'Internal server error saving workflow definition.' });
+    } finally {
+        if (connection) {
+            await connection.end();
+            console.log('[SAVE] Database connection closed.');
+        }
+    }
+});
+
+// GET endpoint to load workflow definition
+app.get('/api/admin/workflows/:workflowId/definition', checkAuth, checkAdmin, async (req, res) => {
+    let connection;
+    const { workflowId } = req.params;
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        const [rows] = await connection.execute(
+            'SELECT definition_json FROM workflows WHERE workflow_id = ?',
+            [workflowId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: `Workflow ID ${workflowId} not found.` });
+        }
+
+        let definition = {}; 
+        if (rows[0].definition_json) {
+            try {
+                definition = JSON.parse(rows[0].definition_json);
+            } catch (parseError) {
+                console.error(`Error parsing definition JSON for workflow ${workflowId}:`, parseError);
+            }
+        }
+        res.json({ definition }); 
+
+    } catch (error) {
+        console.error(`Error loading workflow definition for ${workflowId}:`, error);
+        res.status(500).json({ error: 'Internal server error loading workflow definition.' });
     } finally {
         if (connection) await connection.end();
     }
@@ -1095,7 +1183,10 @@ app.get('/api/admin/workflows/:workflowId/steps', checkAuth, checkAdmin, async (
         const parsedSteps = steps.map(step => {
              let config = {};
              try {
-                  config = step.configuration ? JSON.parse(step.configuration) : {};
+                  // ✅ FIX: Check if configuration is a string before parsing
+                  config = (typeof step.configuration === 'string')
+                               ? JSON.parse(step.configuration || '{}')
+                               : (step.configuration || {}); // Use as-is if already an object
              } catch(e) {
                  console.error(`Invalid JSON configuration for step ${step.step_id} (steps endpoint): ${step.configuration}`);
              }
