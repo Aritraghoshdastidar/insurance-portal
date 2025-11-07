@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock child components to keep tests lightweight and focus on App routing logic
 jest.mock('./components/AdminDashboard', () => () => <div>Admin Dashboard</div>);
@@ -28,14 +29,20 @@ describe('App routing', () => {
   });
 
   test('redirects to login when no token', () => {
-    render(<App />);
+    render(
+  <MemoryRouter>
+    <App />
+  </MemoryRouter>
+  );
     expect(screen.getByText(/Customer Login/i)).toBeInTheDocument();
   });
 
   test('shows admin dashboard when admin token present', () => {
     // Token value doesn't matter, we control decode via mock
     localStorage.setItem('token', 'admin.jwt.token');
-    render(<App />);
+    
+  render(<MemoryRouter initialEntries={['/admin-dashboard']}><App /></MemoryRouter>);
+  
     expect(screen.getByText(/Admin Dashboard/i)).toBeInTheDocument();
   });
 
@@ -43,13 +50,13 @@ describe('App routing', () => {
     const { jwtDecode } = require('jwt-decode');
     jwtDecode.mockImplementation(() => ({ isAdmin: false, exp: Math.floor(Date.now() / 1000) + 3600 }));
     localStorage.setItem('token', 'user.jwt.token');
-    render(<App />);
+    render(<MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter>);
     expect(screen.getByText(/User Dashboard/i)).toBeInTheDocument();
   });
 
   test('logout button clears token and returns to login', () => {
     localStorage.setItem('token', 'admin.jwt.token');
-    render(<App />);
+    render(<MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter>);
   fireEvent.click(screen.getAllByRole('button', { name: /logout/i })[0]);
     expect(localStorage.getItem('token')).toBeNull();
     expect(screen.getByText(/Customer Login/i)).toBeInTheDocument();
@@ -61,7 +68,11 @@ describe('App routing', () => {
     jwtDecode.mockImplementation(() => ({ isAdmin: false, exp: Math.floor(Date.now() / 1000) - 10 }));
     localStorage.setItem('token', 'expired.jwt');
 
-    render(<App />);
+    render(
+  <MemoryRouter>
+    <App />
+  </MemoryRouter>
+  );
     expect(localStorage.getItem('token')).toBeNull();
     expect(screen.getByText(/Customer Login/i)).toBeInTheDocument();
   });
@@ -70,7 +81,11 @@ describe('App routing', () => {
     const { jwtDecode } = require('jwt-decode');
     jwtDecode.mockImplementation(() => { throw new Error('bad token'); });
     localStorage.setItem('token', 'bad.jwt');
-    render(<App />);
+    render(
+  <MemoryRouter>
+    <App />
+  </MemoryRouter>
+  );
     expect(localStorage.getItem('token')).toBeNull();
     expect(screen.getByText(/Customer Login/i)).toBeInTheDocument();
   });

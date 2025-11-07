@@ -1,136 +1,60 @@
-// src/App.js
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
-import { ReactFlowProvider } from 'reactflow'; // ✅ 1. IMPORT THIS
-import './App.css';
-import LoginPage from './components/LoginPage';
-import RegistrationPage from './components/RegistrationPage';
-import Dashboard from './components/Dashboard';
-import AdminDashboard from './components/AdminDashboard';
-import WorkflowList from './components/WorkflowList';
-import WorkflowEditor from './components/WorkflowEditor';
-import WorkflowDesigner from './components/WorkflowDesigner';
+// jest-dom adds custom jest matchers for asserting on DOM nodes.
+// allows you to do things like:
+// expect(element).toHaveTextContent(/react/i)
+// learn more: https://github.com/testing-library/jest-dom
+import '@testing-library/jest-dom';
 
-import AdjusterDashboard from "./components/AdjusterDashboard";
-import DocumentProcessor from "./components/DocumentProcessor";
-import HighRiskAlerts from "./components/HighRiskAlerts";
-import WorkflowMetricsDashboard from "./components/WorkflowMetricsDashboard";
-import OverdueTasksReport from "./components/OverdueTasksReport";
+// -----------------------------------------------------------------
+// ✅ START OF THE NEW ROBUST FIX
+// -----------------------------------------------------------------
 
+// Import the named export we need to mock
+import { jwtDecode as actualJwtDecode } from 'jwt-decode';
 
-function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
+// Mock the 'jwt-decode' library globally for all tests
+jest.mock('jwt-decode', () => ({
+  // Note: The library exports `jwtDecode`, so we mock it by name
+  jwtDecode: jest.fn().mockImplementation((token) => {
+    
+    // Default future expiration date (in seconds)
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
 
-  const getUser = () => {
-    if (!token) return null;
-    try {
-      const decoded = jwtDecode(token);
-      if (decoded.exp * 1000 < Date.now()) {
-        localStorage.removeItem('token');
-        setToken(null);
-        return null;
-      }
-      return decoded;
-    } catch (error) {
-      console.error("Invalid token:", error);
-      localStorage.removeItem('token');
-      setToken(null);
-      return null;
+    // This mock implementation will "decode" all the fake tokens
+    // used across all of your test files.
+
+    // For App.routes.test.js and App.workflow-designer.test.js
+    if (token === 'admin.jwt.token' || token === 'admin-token') {
+      return { isAdmin: true, exp: futureExp, role: 'Admin' };
     }
-  };
 
-  const user = getUser();
+    // For App.routes.test.js
+    if (token === 'user.jwt.token') {
+      return { isAdmin: false, exp: futureExp, role: 'Customer' };
+    }
+    
+    // For App.login.test.js
+    if (token === 'token-app') {
+      return { isAdmin: false, exp: futureExp, role: 'Customer' };
+    }
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-  };
+    // For the "expired token" test in App.routes.test.js
+    if (token === 'expired.jwt') {
+      const pastExp = Math.floor(Date.now() / 1000) - 3600; // In the past
+      return { isAdmin: true, exp: pastExp };
+    }
 
-  // Simple AppShell for consistent layout (optional)
-  const AppShell = ({ children }) => (
-    <div className="app-shell">
-      <nav className="main-nav">
-        <h1>InsuranceSys</h1>
-        <button onClick={handleLogout} className="logout-button">Logout</button>
-      </nav>
-      <main>
-        {children}
-      </main>
-    </div>
-  );
+    // For the "bad token" test in App.routes.test.js
+    if (token === 'bad.jwt') {
+      throw new Error('bad token');
+    }
 
-  return (
-    <BrowserRouter>
-      <div className="App">
-        <Routes>
-          {/* ✅ 2. FIX LOGIN: Change 'setToken' to 'onLoginSuccess' */}
-          <Route path="/login" element={!user ? <LoginPage onLoginSuccess={setToken} /> : <Navigate to="/dashboard" replace />} />
-          <Route path="/register" element={!user ? <RegistrationPage /> : <Navigate to="/dashboard" replace />} />
-
-          <Route
-            path="/dashboard"
-            element={user ? (
-              <AppShell>
-                {user.isAdmin ? <AdminDashboard /> : <Dashboard />}
-              </AppShell>
-            ) : (
-              <Navigate to="/login" replace />
-            )}
-          />
-
-          <Route
-            path="/admin/workflows"
-            element={user && user.isAdmin ? (
-              <AppShell>
-                <WorkflowList />
-              </AppShell>
-            ) : (
-              <Navigate to={user ? "/dashboard" : "/login"} replace />
-            )}
-          />
-
-          <Route
-            path="/admin/workflow-editor/:workflowId"
-            element={user && user.isAdmin ? (
-              <AppShell>
-                <WorkflowEditor />
-              </AppShell>
-            ) : (
-              <Navigate to={user ? "/dashboard" : "/login"} replace />
-            )
-            }
-          />
-
-          <Route
-            path="/admin/workflow-designer/:workflowId"
-            element={user && user.isAdmin ? (
-              <AppShell>
-                {/* ✅ 3. FIX DESIGNER: Add the provider wrapper */}
-                <ReactFlowProvider>
-                  <WorkflowDesigner />
-                </ReactFlowProvider>
-              </AppShell>
-            ) : (
-              <Navigate to={user ? "/dashboard" : "/login"} replace />
-            )}
-          />
-
-          <Route path="/adjuster" element={<AdjusterDashboard />} />
-          <Route path="/documents" element={<DocumentProcessor />} />
-          <Route path="/alerts" element={<HighRiskAlerts />} />
-          <Route path="/metrics" element={<WorkflowMetricsDashboard />} />
-          <Route path="/overdue" element={<OverdueTasksReport />} />
-
-
-          <Route
-            path="*"
-            element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
-          />
-        </Routes>
-      </div>
-    </BrowserRouter>
-  );
-}
-
-export default App;
+    // Fallback for any other token, just in case
+    try {
+      // If it's a real JWT, try to decode it
+      return actualJwtDecode(token);
+    } catch (e) {
+      // Otherwise, return a default user
+      return { isAdmin: false, exp: futureExp };
+    }
+  }),
+}));
