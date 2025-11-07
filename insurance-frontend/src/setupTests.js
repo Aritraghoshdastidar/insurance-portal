@@ -44,6 +44,10 @@ jest.mock('jwt-decode', () => {
   const decodeImpl = (token) => {
     const futureExp = Math.floor(Date.now() / 1000) + 3600;
 
+    // For App.workflow-designer.test.js
+    if (token === 'mock-admin-token') {
+      return { isAdmin: true, exp: futureExp, role: 'Admin', email: 'admin@example.com' };
+    }
     // For App.routes.test.js and App.workflow-designer.test.js
     if (token === 'admin.jwt.token' || token === 'admin-token') {
       return { isAdmin: true, exp: futureExp, role: 'Admin' };
