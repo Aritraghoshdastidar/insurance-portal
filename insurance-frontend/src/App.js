@@ -1,60 +1,132 @@
-// jest-dom adds custom jest matchers for asserting on DOM nodes.
-// allows you to do things like:
-// expect(element).toHaveTextContent(/react/i)
-// learn more: https://github.com/testing-library/jest-dom
-import '@testing-library/jest-dom';
+import React, { useState, useEffect } from 'react';
+import { Route, Routes, Navigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+import { ReactFlowProvider } from 'reactflow';
+import './App.css';
 
-// -----------------------------------------------------------------
-// ✅ START OF THE NEW ROBUST FIX
-// -----------------------------------------------------------------
+// Import components
+import LoginPage from './components/LoginPage';
+import RegistrationPage from './components/RegistrationPage';
+import Dashboard from './components/Dashboard';
+import AdminDashboard from './components/AdminDashboard';
+import FileClaim from './components/FileClaim';
+import WorkflowDesigner from './components/WorkflowDesigner';
+import WorkflowList from './components/WorkflowList';
+import WorkflowEditor from './components/WorkflowEditor';
+import AdjusterDashboard from './components/AdjusterDashboard';
+import DocumentProcessor from './components/DocumentProcessor';
+import HighRiskAlerts from './components/HighRiskAlerts';
+import WorkflowMetricsDashboard from './components/WorkflowMetricsDashboard';
+import OverdueTasksReport from './components/OverdueTasksReport';
 
-// Import the named export we need to mock
-import { jwtDecode as actualJwtDecode } from 'jwt-decode';
+function App() {
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(null);
 
-// Mock the 'jwt-decode' library globally for all tests
-jest.mock('jwt-decode', () => ({
-  // Note: The library exports `jwtDecode`, so we mock it by name
-  jwtDecode: jest.fn().mockImplementation((token) => {
-    
-    // Default future expiration date (in seconds)
-    const futureExp = Math.floor(Date.now() / 1000) + 3600;
-
-    // This mock implementation will "decode" all the fake tokens
-    // used across all of your test files.
-
-    // For App.routes.test.js and App.workflow-designer.test.js
-    if (token === 'admin.jwt.token' || token === 'admin-token') {
-      return { isAdmin: true, exp: futureExp, role: 'Admin' };
+  useEffect(() => {
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        // Check if token is expired
+        if (decoded.exp && decoded.exp < Date.now() / 1000) {
+          handleLogout();
+        } else {
+          setUser(decoded);
+        }
+      } catch (error) {
+        console.error('Invalid token:', error);
+        handleLogout();
+      }
     }
+  }, [token]);
 
-    // For App.routes.test.js
-    if (token === 'user.jwt.token') {
-      return { isAdmin: false, exp: futureExp, role: 'Customer' };
-    }
-    
-    // For App.login.test.js
-    if (token === 'token-app') {
-      return { isAdmin: false, exp: futureExp, role: 'Customer' };
-    }
+  const handleLoginSuccess = (newToken) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+  };
 
-    // For the "expired token" test in App.routes.test.js
-    if (token === 'expired.jwt') {
-      const pastExp = Math.floor(Date.now() / 1000) - 3600; // In the past
-      return { isAdmin: true, exp: pastExp };
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+  };
 
-    // For the "bad token" test in App.routes.test.js
-    if (token === 'bad.jwt') {
-      throw new Error('bad token');
-    }
+  // Render logout button for authenticated users
+  const LogoutButton = () => (
+    <button onClick={handleLogout} role="button">Logout</button>
+  );
 
-    // Fallback for any other token, just in case
-    try {
-      // If it's a real JWT, try to decode it
-      return actualJwtDecode(token);
-    } catch (e) {
-      // Otherwise, return a default user
-      return { isAdmin: false, exp: futureExp };
-    }
-  }),
-}));
+  return (
+    <div className="App">
+      {token && <LogoutButton />}
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            token ? (
+              <Navigate to={user?.isAdmin ? '/admin-dashboard' : '/dashboard'} replace />
+            ) : (
+              <LoginPage onLoginSuccess={handleLoginSuccess} />
+            )
+          }
+        />
+        <Route path="/register" element={<RegistrationPage />} />
+        <Route
+          path="/dashboard"
+          element={token ? <Dashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin-dashboard"
+          element={token && user?.isAdmin ? <AdminDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/file-claim"
+          element={token ? <FileClaim /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin/workflows"
+          element={token && user?.isAdmin ? <WorkflowList /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin/workflow-editor/:workflowId"
+          element={token && user?.isAdmin ? <WorkflowEditor /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin/workflow-designer/:workflowId"
+          element={
+            token && user?.isAdmin ? (
+              <ReactFlowProvider>
+                <WorkflowDesigner />
+              </ReactFlowProvider>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/adjuster-dashboard"
+          element={token ? <AdjusterDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/document-processor"
+          element={token ? <DocumentProcessor /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/high-risk-alerts"
+          element={token ? <HighRiskAlerts /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/workflow-metrics"
+          element={token && user?.isAdmin ? <WorkflowMetricsDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/overdue-tasks"
+          element={token ? <OverdueTasksReport /> : <Navigate to="/login" replace />}
+        />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </div>
+  );
+}
+
+export default App;
