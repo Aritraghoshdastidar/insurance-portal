@@ -28,11 +28,17 @@ function App() {
       try {
         const decoded = jwtDecode(token);
         // Check if token is expired
-        if (decoded.exp && decoded.exp < Date.now() / 1000) {
+        if (!decoded || (decoded.exp && decoded.exp < Date.now() / 1000)) {
           handleLogout();
-        } else {
-          setUser(decoded);
+          return;
         }
+        // Ensure we have the required fields
+        if (typeof decoded.isAdmin !== 'boolean') {
+          console.error('Invalid token format: missing isAdmin field');
+          handleLogout();
+          return;
+        }
+        setUser(decoded);
       } catch (error) {
         console.error('Invalid token:', error);
         handleLogout();

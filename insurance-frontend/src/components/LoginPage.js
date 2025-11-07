@@ -32,8 +32,6 @@ function LoginPage({ onLoginSuccess }) {
       }
 
       localStorage.setItem('token', data.token);
-      // Check if user is admin using the token
-      const decodedToken = jwtDecode(data.token);
       onLoginSuccess(data.token); // Pass token up to App.js
 
       // Redirect handled by the Routes

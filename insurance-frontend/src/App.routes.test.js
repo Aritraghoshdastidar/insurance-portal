@@ -38,11 +38,21 @@ describe('App routing', () => {
   });
 
   test('shows admin dashboard when admin token present', () => {
-    // Token value doesn't matter, we control decode via mock
+    // Mock the admin token decode result
+    const { jwtDecode } = require('jwt-decode');
+    jwtDecode.mockImplementation(() => ({ 
+      isAdmin: true, 
+      exp: Math.floor(Date.now() / 1000) + 3600 
+    }));
+    
     localStorage.setItem('token', 'admin.jwt.token');
     
-  render(<MemoryRouter initialEntries={['/admin-dashboard']}><App /></MemoryRouter>);
-  
+    render(
+      <MemoryRouter initialEntries={['/admin-dashboard']}>
+        <App />
+      </MemoryRouter>
+    );
+    
     expect(screen.getByText(/Admin Dashboard/i)).toBeInTheDocument();
   });
 
@@ -79,14 +89,29 @@ describe('App routing', () => {
 
   test('decode error clears token and shows login', () => {
     const { jwtDecode } = require('jwt-decode');
-    jwtDecode.mockImplementation(() => { throw new Error('bad token'); });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    // Mock a token decode error
+    jwtDecode.mockImplementation(() => { 
+      throw new Error('bad token'); 
+    });
+    
     localStorage.setItem('token', 'bad.jwt');
+    
     render(
-  <MemoryRouter>
-    <App />
-  </MemoryRouter>
-  );
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
+    
+    // Check that token was cleared and user is sent to login
     expect(localStorage.getItem('token')).toBeNull();
     expect(screen.getByText(/Customer Login/i)).toBeInTheDocument();
+    
+    // Verify error was logged (but not shown to user)
+    expect(consoleError).toHaveBeenCalledWith('Invalid token:', expect.any(Error));
+    
+    // Clean up
+    consoleError.mockRestore();
   });
 });
