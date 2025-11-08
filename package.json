@@ -5,7 +5,6 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "pretest": "node -e \"const fs = require('fs'); const path = require('path'); const nested = path.join(__dirname, 'feature-001'); if (fs.existsSync(nested)) { console.log('Removing nested duplicate:', nested); fs.rmSync(nested, {recursive: true, force: true}); }\"",
     "test": "jest --coverage && (cd insurance-frontend && npm test -- --coverage)"
    
   },

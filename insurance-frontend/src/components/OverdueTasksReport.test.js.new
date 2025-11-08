@@ -1,0 +1,113 @@
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import axios from 'axios';
+import OverdueTasksReport from './OverdueTasksReport';
+
+// Mock axios
+jest.mock('axios');
+
+describe('OverdueTasksReport Component', () => {
+  const mockTasks = [
+    {
+      step_id: 1,
+      workflow_id: 'WF001',
+      step_name: 'Document Review',
+      assigned_role: 'Claims Adjuster',
+      hours_overdue: 24
+    },
+    {
+      step_id: 2,
+      workflow_id: 'WF002',
+      step_name: 'Medical Assessment',
+      assigned_role: 'Medical Officer',
+      hours_overdue: 12
+    }
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('renders overdue tasks', async () => {
+    axios.get.mockResolvedValueOnce({
+      data: { overdue_tasks: mockTasks }
+    });
+
+    render(<OverdueTasksReport />);
+
+    // Wait for tasks to load
+    await waitFor(() => {
+      expect(screen.getByText('Document Review')).toBeInTheDocument();
+      expect(screen.getByText('Medical Assessment')).toBeInTheDocument();
+    });
+
+    // Check if task details are rendered
+    expect(screen.getByText('Claims Adjuster')).toBeInTheDocument();
+    expect(screen.getByText('24')).toBeInTheDocument();
+    expect(screen.getByText('WF001')).toBeInTheDocument();
+  });
+
+  test('handles API error', async () => {
+    axios.get.mockRejectedValueOnce(new Error('Failed to fetch tasks'));
+
+    render(<OverdueTasksReport />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to fetch overdue tasks/i)).toBeInTheDocument();
+    });
+  });
+
+  test('displays no tasks message when all within SLA', async () => {
+    axios.get.mockResolvedValueOnce({
+      data: { overdue_tasks: [] }
+    });
+
+    render(<OverdueTasksReport />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/All tasks are within SLA/i)).toBeInTheDocument();
+    });
+  });
+
+  test('makes correct API call', async () => {
+    axios.get.mockResolvedValueOnce({
+      data: { overdue_tasks: [] }
+    });
+
+    render(<OverdueTasksReport />);
+
+    expect(axios.get).toHaveBeenCalledWith('http://localhost:3001/api/reports/overdue-tasks');
+  });
+
+  test('displays table headers correctly', async () => {
+    axios.get.mockResolvedValueOnce({
+      data: { overdue_tasks: mockTasks }
+    });
+
+    render(<OverdueTasksReport />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Step ID')).toBeInTheDocument();
+      expect(screen.getByText('Workflow ID')).toBeInTheDocument();
+      expect(screen.getByText('Step Name')).toBeInTheDocument();
+      expect(screen.getByText('Role')).toBeInTheDocument();
+      expect(screen.getByText('Hours Overdue')).toBeInTheDocument();
+    });
+  });
+
+  test('displays task details in correct format', async () => {
+    axios.get.mockResolvedValueOnce({
+      data: { overdue_tasks: [mockTasks[0]] }
+    });
+
+    render(<OverdueTasksReport />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1')).toBeInTheDocument(); // Step ID
+      expect(screen.getByText('WF001')).toBeInTheDocument(); // Workflow ID
+      expect(screen.getByText('Document Review')).toBeInTheDocument(); // Step Name
+      expect(screen.getByText('Claims Adjuster')).toBeInTheDocument(); // Role
+      expect(screen.getByText('24')).toBeInTheDocument(); // Hours Overdue
+    });
+  });
+});
