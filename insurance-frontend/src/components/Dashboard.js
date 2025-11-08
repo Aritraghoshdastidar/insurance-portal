@@ -28,7 +28,7 @@ function Dashboard() {
       });
       if (!response.ok) throw new Error('Could not fetch claims.');
       const data = await response.json();
-      setClaims(data);
+      setClaims(data.claims || data);
     } catch (err) {
       setErrorClaims(err.message);
     } finally {
@@ -42,15 +42,12 @@ function Dashboard() {
       setLoadingPolicies(true);
       setErrorPolicies(null); // Clear previous errors
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/my-policies', { // Use the new endpoint
+      const response = await fetch('http://localhost:3001/api/my-policies', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) {
-           const data = await response.json();
-           throw new Error(data.error || 'Could not fetch policies.');
-      }
+      if (!response.ok) throw new Error('Could not fetch policies.');
       const data = await response.json();
-      setPolicies(data);
+      setPolicies(data.policies || data);
     } catch (err) {
       setErrorPolicies(err.message);
     } finally {
@@ -59,28 +56,23 @@ function Dashboard() {
   };
 
   // --- fetchNotifications (IWAS-F-041) ---
-const fetchNotifications = async () => {
-  try {
-    setLoadingNotifications(true);
-    setErrorNotifications(null);
-    const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:3001/api/my-notifications', { // Use the new endpoint
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) {
-       const data = await response.json();
-       throw new Error(data.error || 'Could not fetch notifications.');
+  const fetchNotifications = async () => {
+    try {
+      setLoadingNotifications(true);
+      setErrorNotifications(null);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3001/api/my-notifications', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Could not fetch notifications.');
+      const data = await response.json();
+      setNotifications(data.notifications || data);
+    } catch (err) {
+      setErrorNotifications(err.message);
+    } finally {
+      setLoadingNotifications(false);
     }
-    const data = await response.json();
-    setNotifications(data);
-  } catch (err) {
-    setErrorNotifications(err.message);
-  } finally {
-    setLoadingNotifications(false);
-  }
-};
-
-  // 2. useEffect now calls both
+  };  // 2. useEffect now calls both
   useEffect(() => {
     fetchClaims();
     fetchPolicies();
@@ -136,17 +128,21 @@ const fetchNotifications = async () => {
          <div>Loading notifications...</div>
        ) : errorNotifications ? (
          <div className="error">{errorNotifications}</div>
-       ) : notifications.length === 0 ? (
-         <p>No recent notifications.</p>
+       ) : notifications && Array.isArray(notifications) ? (
+         notifications.length === 0 ? (
+           <p>No recent notifications.</p>
+         ) : (
+           <ul className="notifications-list"> {/* Use class from App.css */}
+             {notifications.map(notif => (
+               <li key={notif.notification_id}>
+                 <small>{new Date(notif.sent_timestamp).toLocaleString()}</small>
+                 <p>{notif.message}</p>
+               </li>
+             ))}
+           </ul>
+         )
        ) : (
-         <ul className="notifications-list"> {/* Use class from App.css */}
-           {notifications.map(notif => (
-             <li key={notif.notification_id}>
-               <small>{new Date(notif.sent_timestamp).toLocaleString()}</small>
-               <p>{notif.message}</p>
-             </li>
-           ))}
-         </ul>
+         <div className="error">Error loading notifications</div>
        )}
       <hr className="section-divider" />
       
@@ -156,8 +152,10 @@ const fetchNotifications = async () => {
         <div>Loading policies...</div>
       ) : errorPolicies ? (
         <div className="error">{errorPolicies}</div>
+      ) : !policies || !Array.isArray(policies) ? (
+        <div className="error">Error loading policies</div>
       ) : policies.length === 0 ? (
-        <p>You do not have any policies yet.</p>
+        <p>No policies found</p>
       ) : (
         <table className="claims-table" style={{ marginBottom: '40px' }}>
           <thead>
@@ -213,18 +211,20 @@ const fetchNotifications = async () => {
       {loadingClaims ? (
         <div>Loading claims...</div>
       ) : errorClaims ? (
-         <div className="error">{errorClaims}</div>
+        <div className="error">{errorClaims}</div>
+      ) : !claims || !Array.isArray(claims) ? (
+        <div className="error">Could not fetch claims.</div>
       ) : claims.length === 0 ? (
-        <p>You have not filed any claims yet.</p>
+        <p>No claims found</p>
       ) : (
         <table className="claims-table">
           <thead>
             <tr>
               <th>Claim ID</th>
               <th>Description</th>
-              <th>Date Filed</th>
               <th>Amount</th>
               <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -232,12 +232,18 @@ const fetchNotifications = async () => {
               <tr key={claim.claim_id}>
                 <td>{claim.claim_id}</td>
                 <td>{claim.description}</td>
-                <td>{new Date(claim.claim_date).toLocaleDateString()}</td>
                 <td>${parseFloat(claim.amount).toFixed(2)}</td>
                 <td>
-                  <span className={`status status-${claim.claim_status.toLowerCase()}`}>
-                    {claim.claim_status}
+                  <span className={`status status-${claim.status ? claim.status.toLowerCase() : 'pending'}`}>
+                    {claim.status || 'PENDING'}
                   </span>
+                </td>
+                <td>
+                  {claim.status === 'PENDING' && (
+                    <button className="action-button" disabled>
+                      Processing
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
