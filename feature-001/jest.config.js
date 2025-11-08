@@ -8,13 +8,25 @@ module.exports = {
   testPathIgnorePatterns: [
     "/node_modules/",
     "<rootDir>/insurance-frontend/",
-    // Ignore nested duplicate workspace tree to avoid haste-map collisions
-    "<rootDir>/feature-001/"
+    // IMPORTANT: Ignore only nested feature-001 subdirectory, not the root itself
+    "<rootDir>/feature-001/insurance-frontend/",
+    "<rootDir>/feature-001/node_modules/",
+    "<rootDir>/feature-001/__tests__/"
   ],
-  // Also ignore nested tree during module resolution
+  // Also ignore nested tree and frontend during module resolution
   modulePathIgnorePatterns: [
+    "<rootDir>/insurance-frontend/",
     "<rootDir>/feature-001/"
   ],
+  // Prevent Jest haste-map from scanning nested duplicate tree and frontend
+  watchPathIgnorePatterns: [
+    "<rootDir>/insurance-frontend/",
+    "<rootDir>/feature-001/"
+  ],
+  // Force haste to ignore nested paths
+  haste: {
+    forceNodeFilesystemAPI: true
+  },
   // Setup coverage
   collectCoverage: false,
   coverageReporters: ['json', 'lcov', 'text', 'clover'],
@@ -22,6 +34,7 @@ module.exports = {
   coveragePathIgnorePatterns: [
     "/node_modules/",
     "server.js",
+    "<rootDir>/insurance-frontend/",
     "<rootDir>/feature-001/"
   ],
   // Coverage thresholds adjusted to current backend coverage
