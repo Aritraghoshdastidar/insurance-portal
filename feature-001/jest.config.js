@@ -4,14 +4,15 @@ module.exports = {
   verbose: true,
   // Stop running tests after first failure
   bail: 1, 
+  // CRITICAL: Explicitly whitelist only root __tests__ directory to prevent scanning nested paths
+  testMatch: [
+    "<rootDir>/__tests__/**/*.test.js"
+  ],
   // Ignore frontend React app tests; they are run separately via CRA
   testPathIgnorePatterns: [
     "/node_modules/",
     "<rootDir>/insurance-frontend/",
-    // IMPORTANT: Ignore only nested feature-001 subdirectory, not the root itself
-    "<rootDir>/feature-001/insurance-frontend/",
-    "<rootDir>/feature-001/node_modules/",
-    "<rootDir>/feature-001/__tests__/"
+    "<rootDir>/feature-001/"
   ],
   // Also ignore nested tree and frontend during module resolution
   modulePathIgnorePatterns: [
