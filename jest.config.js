@@ -4,10 +4,25 @@ module.exports = {
   verbose: true,
   // Stop running tests after first failure
   bail: 1, 
+  // Only look for tests in the backend __tests__ folder
+  roots: [
+    "<rootDir>/__tests__"
+  ],
   // Ignore frontend React app tests; they are run separately via CRA
   testPathIgnorePatterns: [
     "/node_modules/",
-    "<rootDir>/insurance-frontend/"
+    "<rootDir>/insurance-frontend/",
+    "<rootDir>/feature-001/"
+  ],
+  // Prevent Jest's haste-map from scanning duplicate nested trees
+  modulePathIgnorePatterns: [
+    "<rootDir>/insurance-frontend/",
+    "<rootDir>/feature-001/"
+  ],
+  // Also ignore in watch mode to avoid collisions
+  watchPathIgnorePatterns: [
+    "<rootDir>/insurance-frontend/",
+    "<rootDir>/feature-001/"
   ],
   // Setup coverage
   collectCoverage: false,

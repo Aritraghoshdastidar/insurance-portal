@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "jest --coverage && (cd insurance-frontend && npm test -- --coverage)"
+    "test": "jest --coverage && (cd insurance-frontend && npm test -- --coverage --watchAll=false)",
+    "test:ci": "jest --coverage && (cd insurance-frontend && npm test -- --coverage --watchAll=false)"
    
   },
   "keywords": [],
