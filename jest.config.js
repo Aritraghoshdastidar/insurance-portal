@@ -24,13 +24,16 @@ module.exports = {
     "<rootDir>/insurance-frontend/",
     "<rootDir>/feature-001/"
   ],
-  // Setup coverage
-  collectCoverage: false,
+  // Setup coverage for backend
+  collectCoverage: true,
+  collectCoverageFrom: [
+    "server.js",
+    "!**/node_modules/**"
+  ],
   coverageReporters: ['json', 'lcov', 'text', 'clover'],
   // Ignore non-unit tested entrypoint from coverage to focus on tested modules
   coveragePathIgnorePatterns: [
-    "/node_modules/",
-    "server.js"
+    "/node_modules/"
   ],
   // Coverage thresholds adjusted to current backend coverage
   // Frontend has separate coverage config in insurance-frontend/package.json
