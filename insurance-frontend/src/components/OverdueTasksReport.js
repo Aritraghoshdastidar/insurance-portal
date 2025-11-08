@@ -5,14 +5,23 @@ import axios from "axios";
 function OverdueTasksReport() {
   const [tasks, setTasks] = useState([]);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     axios
       .get("http://localhost:3001/api/reports/overdue-tasks")
-      .then((res) => setTasks(res.data.overdue_tasks || []))
-      .catch(() => setError("Failed to fetch overdue tasks."));
+      .then((res) => {
+        setTasks(res.data.overdue_tasks || []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to fetch overdue tasks.");
+        setLoading(false);
+      });
   }, []);
 
+  if (loading) return <div>Loading...</div>;
   if (error) return <p className="error">{error}</p>;
 
   return (

@@ -13,6 +13,18 @@ function FileClaim({ onClaimFiled }) {
     setError(null);
     setSuccess(null);
 
+    // Client-side validation
+    if (!policyId || !description || !amount) {
+      setError('All fields are required.');
+      return;
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError('Claim amount must be a positive number.');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:3001/api/my-claims', {
@@ -21,7 +33,7 @@ function FileClaim({ onClaimFiled }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ policy_id: policyId, description, amount: parseFloat(amount) })
+        body: JSON.stringify({ policy_id: policyId, description, amount: parsedAmount })
       });
 
       const data = await response.json();
@@ -49,8 +61,9 @@ function FileClaim({ onClaimFiled }) {
       {success && <div className="success">{success}</div>}
 
       <div className="form-group">
-        <label>Policy ID</label>
+        <label htmlFor="policy-id">Policy ID</label>
         <input
+          id="policy-id"
           type="text"
           value={policyId}
           onChange={(e) => setPolicyId(e.target.value)}
@@ -59,8 +72,9 @@ function FileClaim({ onClaimFiled }) {
         />
       </div>
       <div className="form-group">
-        <label>Description</label>
+        <label htmlFor="description">Description</label>
         <input
+          id="description"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -69,8 +83,9 @@ function FileClaim({ onClaimFiled }) {
         />
       </div>
       <div className="form-group">
-        <label>Claim Amount ($)</label>
+        <label htmlFor="amount">Claim Amount ($)</label>
         <input
+          id="amount"
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}

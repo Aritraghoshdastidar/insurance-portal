@@ -1,173 +1,161 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode'; // Ensure you have installed this: npm install jwt-decode
-import './App.css'; // Your CSS file
+import React, { useState, useEffect } from 'react';
+import { Route, Routes, Navigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+import { ReactFlowProvider } from 'reactflow';
+import './App.css';
+
+// Import components
 import LoginPage from './components/LoginPage';
 import RegistrationPage from './components/RegistrationPage';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
-import WorkflowList from './components/WorkflowList'; // Import WorkflowList
-import WorkflowEditor from './components/WorkflowEditor'; // Import WorkflowEditor
-
-import AdjusterDashboard from "./components/AdjusterDashboard";
-import DocumentProcessor from "./components/DocumentProcessor";
-import HighRiskAlerts from "./components/HighRiskAlerts";
-import WorkflowMetricsDashboard from "./components/WorkflowMetricsDashboard";
-import OverdueTasksReport from "./components/OverdueTasksReport";
-
+import FileClaim from './components/FileClaim';
+import WorkflowDesigner from './components/WorkflowDesigner';
+import WorkflowList from './components/WorkflowList';
+import WorkflowEditor from './components/WorkflowEditor';
+import AdjusterDashboard from './components/AdjusterDashboard';
+import DocumentProcessor from './components/DocumentProcessor';
+import HighRiskAlerts from './components/HighRiskAlerts';
+import WorkflowMetricsDashboard from './components/WorkflowMetricsDashboard';
+import OverdueTasksReport from './components/OverdueTasksReport';
 
 function App() {
-  // Use state to manage token, allows App to re-render on login/logout
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(null);
 
-  // Helper function to decode token safely
-  const getUser = () => {
-    if (!token) return null;
-    try {
-      // Check token expiry if needed before decoding
-      const decoded = jwtDecode(token);
-      // Optional: Check if token is expired
-      if (decoded.exp * 1000 < Date.now()) {
-          console.log("Token expired, logging out.");
-          localStorage.removeItem('token');
-          // Update state directly only if component is mounted, otherwise schedule update
-          // For simplicity here, we rely on subsequent render triggered by state change or navigation
-          setToken(null);
-          return null;
+  useEffect(() => {
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        // Check if token is expired
+        if (!decoded || (decoded.exp && decoded.exp < Date.now() / 1000)) {
+          handleLogout();
+          return;
+        }
+        // Ensure we have the required fields
+        if (typeof decoded.isAdmin !== 'boolean') {
+          console.error('Invalid token format: missing isAdmin field');
+          handleLogout();
+          return;
+        }
+        setUser(decoded);
+      } catch (error) {
+        console.error('Invalid token:', error);
+        handleLogout();
       }
-      return decoded;
-    } catch (e) {
-      console.error("Error decoding token:", e);
-      localStorage.removeItem('token'); // Clean up invalid token
-      setToken(null); // Update state to trigger re-render
-      return null;
     }
-  };
+  }, [token]);
 
-  const user = getUser(); // Get user info based on current token state
-
-  // Function passed to LoginPage to update token state
-  const handleLogin = (newToken) => {
+  const handleLoginSuccess = (newToken) => {
     localStorage.setItem('token', newToken);
-    setToken(newToken); // Update state to trigger re-render
-    // Navigation is handled by the Routes automatically redirecting
+    setToken(newToken);
   };
 
-  // Function to clear token state and local storage
   const handleLogout = () => {
     localStorage.removeItem('token');
-    setToken(null); // Update state to trigger re-render
-    // Navigation is handled by the Routes re-evaluating below
+    setToken(null);
+    setUser(null);
   };
 
-  // --- Reusable Layout Component with Navbar for Logged-In Users ---
-  const AppShell = ({ children }) => {
-    // Use the handleLogout from the App component scope
-    const handleLogoutAndRedirect = () => {
-      handleLogout();
-      // No explicit navigation needed here after logout, Routes below will redirect
-    };
+  // Render logout button for authenticated users
+  const LogoutButton = () => (
+    <button onClick={handleLogout} role="button">Logout</button>
+  );
 
-    return (
-      <>
-        <nav className="main-nav">
-          <h1>Insurance Portal {user && user.isAdmin ? '- ADMIN' : ''}</h1>
-          {user && ( // Only show logout if user exists (implies logged in)
-            <button onClick={handleLogoutAndRedirect} className="logout-button">
-              Logout
-            </button>
-          )}
-        </nav>
-        {/* Render the specific page content passed as children */}
-        {/* The .content centering styles are applied here */}
-        <div className="content">{children}</div>
-      </>
-    );
-  };
-
-  // --- Main Routing Logic ---
   return (
-    <BrowserRouter>
-      <div className="App">
-        <Routes>
-          {/* Public Routes: Login and Registration */}
-          <Route
-            path="/login"
-            element={!user ? ( // If user is NOT logged in, show login page
-              // Wrap public pages in a basic content div for centering
-               <div className="content">
-                 <LoginPage onLoginSuccess={handleLogin} />
-               </div>
-              ) : ( // If user IS logged in, redirect to their dashboard
-                <Navigate to="/dashboard" replace /> // Use replace to avoid back button issues
-              )
-            }
-          />
-          <Route
-            path="/register"
-            element={!user ? (
-               <div className="content">
-                 <RegistrationPage />
-               </div>
+    <div className="App">
+      {token && <LogoutButton />}
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            token ? (
+              <Navigate to={user?.isAdmin ? '/admin-dashboard' : '/dashboard'} replace />
+            ) : (
+              <LoginPage onLoginSuccess={handleLoginSuccess} />
+            )
+          }
+        />
+        <Route path="/register" element={<RegistrationPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            token ? (
+              user?.isAdmin ? (
+                <Navigate to="/admin-dashboard" replace />
               ) : (
-                <Navigate to="/dashboard" replace />
+                <Dashboard />
               )
-            }
-          />
-
-          {/* Protected Routes: Require Login */}
-          {/* Note: /dashboard is now the base for all logged-in views via AppShell */}
-          <Route
-            path="/dashboard"
-            element={user ? ( // If user IS logged in...
-              <AppShell>
-                {/* Show correct dashboard based on isAdmin flag */}
-                {user.isAdmin ? <AdminDashboard /> : <Dashboard />}
-              </AppShell>
-              ) : ( // If user is NOT logged in, redirect to login
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-           <Route
-            path="/admin/workflows"
-            element={user && user.isAdmin ? ( // If user IS logged in AND is admin...
-              <AppShell>
-                <WorkflowList />
-              </AppShell>
-              ) : ( // If not logged in or not admin, redirect appropriately
-                <Navigate to={user ? "/dashboard" : "/login"} replace /> // Send non-admins to their dash, logged out to login
-              )
-            }
-          />
-           <Route
-            path="/admin/workflows/:workflowId" // Handles "/admin/workflows/new" and "/admin/workflows/SOME_ID"
-            element={user && user.isAdmin ? (
-              <AppShell>
-                <WorkflowEditor />
-              </AppShell>
-              ) : ( // If not logged in or not admin, redirect appropriately
-                <Navigate to={user ? "/dashboard" : "/login"} replace /> // Send non-admins to their dash, logged out to login
-              )
-            }
-          />
-
-
-           <Route path="/adjuster" element={<AdjusterDashboard />} />
-           <Route path="/documents" element={<DocumentProcessor />} />
-           <Route path="/alerts" element={<HighRiskAlerts />} />
-           <Route path="/metrics" element={<WorkflowMetricsDashboard />} />
-           <Route path="/overdue" element={<OverdueTasksReport />} />
-
-           
-          {/* Fallback Route: Redirects any unknown path */}
-          <Route
-            path="*"
-            element={<Navigate to={user ? "/dashboard" : "/login"} replace />} // Redirect based on login status
-          />
-        </Routes>
-      </div>
-    </BrowserRouter>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        {/* Support both admin dashboard URLs */}
+        <Route
+          path="/admin/dashboard"
+          element={token && user?.isAdmin ? <AdminDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin-dashboard"
+          element={token && user?.isAdmin ? <AdminDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/file-claim"
+          element={token ? <FileClaim /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin/workflows"
+          element={token && user?.isAdmin ? <WorkflowList /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin/workflow-editor/:workflowId"
+          element={token && user?.isAdmin ? <WorkflowEditor /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin/workflow-designer/:workflowId"
+          element={
+            token && user?.isAdmin ? (
+              <ReactFlowProvider>
+                <WorkflowDesigner />
+              </ReactFlowProvider>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/adjuster-dashboard"
+          element={token ? <AdjusterDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/document-processor"
+          element={token ? <DocumentProcessor /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/high-risk-alerts"
+          element={token ? <HighRiskAlerts /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/workflow-metrics"
+          element={token && user?.isAdmin ? <WorkflowMetricsDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/overdue-tasks"
+          element={token ? <OverdueTasksReport /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/"
+          element={
+            token ? (
+              <Navigate to={user?.isAdmin ? '/admin-dashboard' : '/dashboard'} replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+      </Routes>
+    </div>
   );
 }
 

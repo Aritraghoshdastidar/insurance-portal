@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
+import { MemoryRouter } from 'react-router-dom';
 
 // Keep same mock style
 jest.mock('./components/AdminDashboard', () => () => <div>Admin Dashboard</div>);
@@ -23,7 +24,11 @@ describe('App login flow', () => {
   });
 
   test('successful login updates token and shows dashboard', async () => {
-    render(<App />);
+    render(
+  <MemoryRouter>
+    <App />
+  </MemoryRouter>
+  );
 
     // Fill form from LoginPage rendered by App
     fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'a@b.com' } });

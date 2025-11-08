@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode'; // <-- THIS LINE IS CHANGED
+import { jwtDecode } from 'jwt-decode';
 
 function AdminDashboard() {
   // --- State ---
@@ -43,7 +43,7 @@ function AdminDashboard() {
         throw new Error(data.error || 'Could not fetch pending claims.');
       }
       const data = await response.json();
-      setPendingClaims(data);
+      setPendingClaims(data.pending_claims || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,7 +64,7 @@ function AdminDashboard() {
         throw new Error(data.error || 'Could not fetch pending policies.');
       }
       const data = await response.json();
-      setPendingPolicies(data);
+      setPendingPolicies(data.pending_policies || []);
     } catch (err) {
       setError(err.message);
     } finally {

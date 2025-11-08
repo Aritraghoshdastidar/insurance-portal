@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom'; // Make sure this import is here
+import { jwtDecode } from 'jwt-decode';
 
 function LoginPage({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -33,6 +34,7 @@ function LoginPage({ onLoginSuccess }) {
       localStorage.setItem('token', data.token);
       onLoginSuccess(data.token); // Pass token up to App.js
 
+      // Redirect handled by the Routes
     } catch (err) {
       setError(err.message);
     }
