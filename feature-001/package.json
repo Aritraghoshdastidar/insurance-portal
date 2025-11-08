@@ -1,0 +1,40 @@
+{
+  "name": "insurance-backend-official",
+  "version": "1.0.0",
+  "description": "**Project ID:** P04  \r **Course:** UE23CS341A  \r **Academic Year:** 2025  \r **Semester:** 5th Sem  \r **Campus:** RR  \r **Branch:** AIML  \r **Section:** B  \r **Team:** Logicore",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "pretest": "node -e \"const fs = require('fs'); const path = require('path'); const nested = path.join(__dirname, 'feature-001'); if (fs.existsSync(nested)) { console.log('Removing nested duplicate:', nested); fs.rmSync(nested, {recursive: true, force: true}); }\"",
+    "test": "jest --coverage && (cd insurance-frontend && npm test -- --coverage)"
+   
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.3",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-react": "^7.28.5",
+    "babel-jest": "^30.2.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env",
+      "@babel/preset-react"
+    ]
+  }
+}
