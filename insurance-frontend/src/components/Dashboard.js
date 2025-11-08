@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FileClaim from './FileClaim'; // 👈 You already have this
 
 function Dashboard() {
@@ -12,6 +12,8 @@ function Dashboard() {
   const [loadingPolicies, setLoadingPolicies] = useState(true);
   const [errorPolicies, setErrorPolicies] = useState(null);
   const [activationStatus, setActivationStatus] = useState({}); // For row-level status
+  // Track in-flight activations to prevent duplicate requests per policy
+  const activatingRef = useRef(new Set());
 
 // --- State for Notifications (IWAS-F-041) ---
   const [notifications, setNotifications] = useState([]);
@@ -91,6 +93,11 @@ function Dashboard() {
       return;
     }
 
+    // Prevent duplicate activations while one is in progress for this policy
+    const inFlightRef = activatingRef.current;
+    if (inFlightRef.has(policyId)) return;
+    inFlightRef.add(policyId);
+
     setActivationStatus(prev => ({ ...prev, [policyId]: 'Activating...' }));
     
     try {
@@ -114,6 +121,9 @@ function Dashboard() {
     } catch (err) {
       console.error('Mock Activation Error:', err);
       setActivationStatus(prev => ({ ...prev, [policyId]: `Error: ${err.message}` }));
+    } finally {
+      // Clear in-flight marker so subsequent attempts are allowed
+      inFlightRef.delete(policyId);
     }
   };
 

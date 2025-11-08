@@ -12,9 +12,23 @@ import WorkflowDesigner from './WorkflowDesigner';
 // In WorkflowDesigner.test.js
 jest.mock('reactflow', () => ({
   ...jest.requireActual('reactflow'),
-  __esModule: true, // <-- Tell Jest this is an ES Module
-  default: (props) => <div data-testid="react-flow-mock">{props.children}</div>, // <-- Mock the default export
-  useReactFlow: () => ({ // <-- Mock the useReactFlow hook
+  __esModule: true,
+  default: ({ nodes = [], onNodeDoubleClick, children }) => (
+    <div data-testid="react-flow-mock">
+      {nodes.map(n => (
+        <div
+          key={n.id}
+            data-testid={`node-${n.id}`}
+          onDoubleClick={(e) => onNodeDoubleClick && onNodeDoubleClick(e, n)}
+          style={{ padding: '4px', border: '1px solid #ccc', margin: '2px' }}
+        >
+          {n.data?.label}
+        </div>
+      ))}
+      {children}
+    </div>
+  ),
+  useReactFlow: () => ({
     project: jest.fn((coords) => coords),
     fitView: jest.fn(),
   }),
@@ -56,7 +70,7 @@ afterEach(() => {
 // Mock global fetch
 global.fetch = jest.fn();
 
-const setup = (workflowId) => {
+const setup = (workflowId, { defOk = true, withDefinition = true } = {}) => {
   // Reset mocks before each setup
   global.fetch.mockClear();
   
@@ -65,17 +79,20 @@ const setup = (workflowId) => {
 // In WorkflowDesigner.test.js, inside the setup() function
 
   // ...
-  const mockFetch = (url) => {
-    if (url.includes('/definition')) {
-      // ...
+  const mockFetch = (url, opts) => {
+    if (url.includes(`/api/admin/workflows/${workflowId}`) && !url.includes('/definition')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: 'Test Workflow' }) });
     }
-    if (url.includes(`/api/admin/workflows/${workflowId}`)) {
-       return Promise.resolve({
+    if (url.includes(`/api/admin/workflows/${workflowId}/definition`) && (!opts || opts.method === 'GET')) {
+      if (!defOk) {
+        return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+      }
+      return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ name: 'Test Workflow' }), // <-- FIX: 'workflow_name' changed to 'name'
+        json: () => Promise.resolve(withDefinition ? { definition: { nodes: [{ id: 'node_5', type: 'rule', data: { label: 'Existing' }, position: { x: 0, y: 0 } }], edges: [] } } : { definition: null })
       });
     }
-    return Promise.resolve({ ok: false });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
   };
   // ...
   
@@ -128,12 +145,16 @@ describe('WorkflowDesigner', () => {
     await screen.findByText('Save Workflow');
 
     // Mock a successful save response
-    global.fetch.mockImplementation((url) => {
-      if (url.includes('/definition') && url.includes('PUT')) {
+    global.fetch.mockImplementation((url, opts) => {
+      if (url.includes('/definition') && opts && opts.method === 'PUT') {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ message: 'Saved!' }),
         });
+      }
+      // Preserve earlier successful GET mocks for name/definition if re-called
+      if (url.includes('/CLAIM_APPROVAL_V1') && (!opts || opts.method === 'GET')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
@@ -147,21 +168,114 @@ describe('WorkflowDesigner', () => {
 
     // Check that the PUT request was sent
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/admin/workflows/CLAIM_APPROVAL_V1/definition',
-        expect.objectContaining({
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
-          },
-          // The body will be the default empty nodes/edges from our load mock
-          body: JSON.stringify({ definition: { nodes: [{ id: '1', type: 'input', data: { label: 'Start' }, position: { x: 250, y: 5 } }], edges: [] } }),
+      const putCall = global.fetch.mock.calls.find(([u, o]) => u === '/api/admin/workflows/CLAIM_APPROVAL_V1/definition' && o && o.method === 'PUT');
+      expect(putCall).toBeTruthy();
+      expect(putCall[1]).toEqual(expect.objectContaining({
+        method: 'PUT',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer mock-token'
         })
-      );
+      }));
+      const parsed = JSON.parse(putCall[1].body);
+      expect(parsed.definition).toBeTruthy();
+      expect(parsed.definition.nodes.length).toBeGreaterThan(0); // At least one node present
     });
 
     // Check if success alert was shown
     expect(window.alert).toHaveBeenCalledWith('Workflow saved successfully!');
+  });
+
+  it('handles save error path showing alert and error state', async () => {
+    setup('WF_SAVE_ERR');
+    await screen.findByText('Save Workflow');
+    // Force PUT failure
+    global.fetch.mockImplementation((url, opts) => {
+      if (url.includes('/definition') && opts && opts.method === 'PUT') {
+        return Promise.resolve({ ok: false, json: () => Promise.resolve({ error: 'Failed to save workflow' }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+    jest.spyOn(window, 'alert').mockImplementation(() => {});
+    userEvent.click(screen.getByText('Save Workflow'));
+    await waitFor(() => expect(window.alert).toHaveBeenCalledWith(expect.stringMatching(/Error saving workflow/i)));
+  });
+
+  it('displays error message when definition fetch fails', async () => {
+    setup('WF_DEF_ERR', { defOk: false });
+    // After failing definition fetch we expect an Error component
+    await waitFor(() => expect(screen.getByText(/Error:/i)).toBeInTheDocument());
+  });
+
+  it('adds rule and manual nodes via buttons', async () => {
+    setup('WF_ADD_NODES');
+    await screen.findByText('Save Workflow');
+    const ruleBtn = screen.getByText('Add Rule Node');
+    const manualBtn = screen.getByText('Add Manual Task');
+    userEvent.click(ruleBtn);
+    userEvent.click(manualBtn);
+    // After adding nodes, attempt save to ensure payload contains them
+    global.fetch.mockImplementation((url, opts) => {
+      if (url.includes('/definition') && opts && opts.method === 'PUT') {
+        const body = JSON.parse(opts.body);
+        expect(body.definition.nodes.length).toBeGreaterThanOrEqual(3); // Start + 2 added
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+    jest.spyOn(window, 'alert').mockImplementation(() => {});
+    userEvent.click(screen.getByText('Save Workflow'));
+    await waitFor(() => expect(window.alert).toHaveBeenCalled());
+  });
+
+  it('opens edit modal on node double click and saves label', async () => {
+    setup('WF_EDIT_LABEL', { withDefinition: true });
+    await screen.findByText('Save Workflow');
+    userEvent.click(screen.getByText('Add Rule Node'));
+    const ruleNode = screen.getAllByTestId(/node-/).find(el => /New Rule/i.test(el.textContent));
+    expect(ruleNode).toBeTruthy();
+    await userEvent.dblClick(ruleNode);
+    const modalHeading = await screen.findByText(/Edit Node Label/i);
+    expect(modalHeading).toBeInTheDocument();
+    const input = screen.getByRole('textbox');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Rule Updated');
+    jest.spyOn(window, 'alert').mockImplementation(() => {});
+    global.fetch.mockImplementation((url, opts) => {
+      if (url.includes('/definition') && opts && opts.method === 'PUT') {
+        const body = JSON.parse(opts.body);
+        const updatedNode = body.definition.nodes.find(n => n.data?.label === 'Rule Updated');
+        expect(updatedNode).toBeTruthy();
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+    userEvent.click(screen.getByText('Save'));
+    userEvent.click(screen.getByText('Save Workflow'));
+    await waitFor(() => expect(window.alert).toHaveBeenCalled());
+  });
+
+  it('cancels label edit without persisting changes', async () => {
+    setup('WF_EDIT_CANCEL', { withDefinition: true });
+    await screen.findByText('Save Workflow');
+    userEvent.click(screen.getByText('Add Rule Node'));
+    const ruleNode = screen.getAllByTestId(/node-/).find(el => /New Rule/i.test(el.textContent));
+    await userEvent.dblClick(ruleNode);
+    const input = await screen.findByRole('textbox');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Temp Change');
+    userEvent.click(screen.getByText('Cancel'));
+    jest.spyOn(window, 'alert').mockImplementation(() => {});
+    global.fetch.mockImplementation((url, opts) => {
+      if (url.includes('/definition') && opts && opts.method === 'PUT') {
+        const body = JSON.parse(opts.body);
+        const hasTemp = body.definition.nodes.some(n => n.data?.label === 'Temp Change');
+        expect(hasTemp).toBe(false);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+    userEvent.click(screen.getByText('Save Workflow'));
+    await waitFor(() => expect(window.alert).toHaveBeenCalled());
   });
 });

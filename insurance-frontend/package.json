@@ -9,6 +9,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.13.0",
+    "insurance-frontend-official": "file:",
     "jwt-decode": "^4.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -53,9 +54,14 @@
     "transformIgnorePatterns": [
       "/node_modules/(?!(axios)/)"
     ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "!src/index.js",
+      "!src/reportWebVitals.js"
+    ],
     "moduleNameMapper": {
-    "\\.(css|less|scss|sass)$": "identity-obj-proxy"
-  }
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy"
+    }
   },
   "devDependencies": {
     "identity-obj-proxy": "^3.0.0"

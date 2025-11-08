@@ -83,4 +83,38 @@ describe('WorkflowList Component', () => {
     expect(editStepsLinks[0].getAttribute('href')).toContain('/admin/workflow-editor/1');
     expect(editVisualLinks[0].getAttribute('href')).toContain('/admin/workflow-designer/1');
   });
+
+  test('shows empty state when no workflows returned', async () => {
+    // Return empty array for workflows
+    mockFetch.mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) }));
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <WorkflowList />
+        </MemoryRouter>
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/No workflows found/i)).toBeInTheDocument();
+    });
+    // Ensure table not rendered
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  test('falls back to dash when description missing', async () => {
+    const wfNoDescription = [{ workflow_id: 9, name: 'Ghost Flow' }];
+    mockFetch.mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve(wfNoDescription) }));
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <WorkflowList />
+        </MemoryRouter>
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Ghost Flow')).toBeInTheDocument();
+      // Fallback dash for missing description
+      expect(screen.getByText('-')).toBeInTheDocument();
+    });
+  });
 });
