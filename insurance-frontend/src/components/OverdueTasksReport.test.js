@@ -1,10 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import axios from 'axios';
+import { render, screen, waitFor } from '@testing-library/react';
 import OverdueTasksReport from './OverdueTasksReport';
-
-// Mock axios
-jest.mock('axios');
 
 describe('OverdueTasksReport Component', () => {
   const mockTasks = [
@@ -26,8 +22,11 @@ describe('OverdueTasksReport Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    axios.get.mockResolvedValue({ data: { overdue_tasks: mockTasks } });
     localStorage.setItem('token', 'mock.jwt.token');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ overdue_tasks: mockTasks })
+    });
   });
 
   test('renders overdue tasks', async () => {
@@ -41,39 +40,96 @@ describe('OverdueTasksReport Component', () => {
   });
 
   test('handles API error', async () => {
-    axios.get.mockRejectedValueOnce(new Error('Failed to fetch tasks'));
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Failed to fetch overdue tasks' })
+    });
 
     render(<OverdueTasksReport />);
 
     // Check if error message is displayed
     await waitFor(() => {
-      expect(screen.getByText(/Failed to fetch overdue tasks/i)).toBeInTheDocument();
+      expect(screen.getByText('Failed to fetch overdue tasks')).toBeInTheDocument();
     });
   });
 
   test('handles network error', async () => {
-    axios.get.mockRejectedValueOnce(new Error('Network error'));
+    global.fetch.mockRejectedValueOnce(new Error('Network error'));
 
     render(<OverdueTasksReport />);
 
     // Check if error message is displayed
     await waitFor(() => {
-      expect(screen.getByText(/Failed to fetch overdue tasks/i)).toBeInTheDocument();
+      expect(screen.getByText('Network error')).toBeInTheDocument();
     });
   });
 
-  test('displays loading state', async () => {
+  test('displays loading state', () => {
+    global.fetch.mockImplementation(() => new Promise(() => {}));
+
     render(<OverdueTasksReport />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
   test('shows empty state when no tasks', async () => {
-    axios.get.mockResolvedValueOnce({ data: { overdue_tasks: [] } });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ overdue_tasks: [] })
+    });
     
     render(<OverdueTasksReport />);
 
     await waitFor(() => {
-      expect(screen.getByText('All tasks are within SLA.')).toBeInTheDocument();
+      expect(screen.getByText('All tasks are within SLA. No overdue tasks found.')).toBeInTheDocument();
+    });
+  });
+
+  test('handles table not found error gracefully', async () => {
+    global.fetch.mockRejectedValueOnce(new Error("ER_NO_SUCH_TABLE: Table 'insurance_db_dev.workflow_steps' doesn't exist"));
+
+    render(<OverdueTasksReport />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Workflow tracking is not yet configured/i)).toBeInTheDocument();
+    });
+  });
+
+  test('displays severity colors for different overdue durations', async () => {
+    const tasksWithDifferentSeverity = [
+      {
+        step_id: 3,
+        workflow_id: 'WF003',
+        step_name: 'Critical Task',
+        assigned_role: 'Manager',
+        hours_overdue: 60
+      },
+      {
+        step_id: 4,
+        workflow_id: 'WF004',
+        step_name: 'Warning Task',
+        assigned_role: 'Adjuster',
+        hours_overdue: 30
+      },
+      {
+        step_id: 5,
+        workflow_id: 'WF005',
+        step_name: 'Info Task',
+        assigned_role: 'Clerk',
+        hours_overdue: 10
+      }
+    ];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ overdue_tasks: tasksWithDifferentSeverity })
+    });
+    
+    render(<OverdueTasksReport />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Critical Task')).toBeInTheDocument();
+      expect(screen.getByText('Warning Task')).toBeInTheDocument();
+      expect(screen.getByText('Info Task')).toBeInTheDocument();
     });
   });
 });

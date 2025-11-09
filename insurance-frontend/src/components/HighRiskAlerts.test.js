@@ -42,8 +42,8 @@ describe('HighRiskAlerts Component', () => {
       expect(screen.getByText('CLM002')).toBeInTheDocument();
       expect(screen.getByText('CUST001')).toBeInTheDocument();
       expect(screen.getByText('CUST002')).toBeInTheDocument();
-      expect(screen.getByText('₹50000')).toBeInTheDocument();
-      expect(screen.getByText('₹75000')).toBeInTheDocument();
+  expect(screen.getByText('₹50000.00')).toBeInTheDocument();
+  expect(screen.getByText('₹75000.00')).toBeInTheDocument();
     });
   });
 
@@ -70,13 +70,11 @@ describe('HighRiskAlerts Component', () => {
   });
 
   test('displays loading state', async () => {
-    render(<HighRiskAlerts />);
-    
-    expect(screen.getByText(/Loading alerts/i)).toBeInTheDocument();
+    axios.get.mockReturnValue(new Promise(() => {}));
 
-    await waitFor(() => {
-      expect(screen.queryByText(/Loading alerts/i)).not.toBeInTheDocument();
-    });
+    render(<HighRiskAlerts />);
+
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
   test('displays no alerts message', async () => {
@@ -98,6 +96,69 @@ describe('HighRiskAlerts Component', () => {
       expect(screen.getByText('Amount')).toBeInTheDocument();
       expect(screen.getByText('Status')).toBeInTheDocument();
       expect(screen.getByText('Risk Score')).toBeInTheDocument();
+    });
+  });
+
+  test('displays APPROVED status with success color', async () => {
+    const approvedAlerts = {
+      high_risk_claims: [
+        {
+          claim_id: 'CLM003',
+          customer_id: 'CUST003',
+          amount: 30000,
+          claim_status: 'APPROVED',
+          risk_score: 0.75
+        }
+      ]
+    };
+    axios.get.mockResolvedValueOnce({ data: approvedAlerts });
+
+    render(<HighRiskAlerts />);
+
+    await waitFor(() => {
+      expect(screen.getByText('APPROVED')).toBeInTheDocument();
+    });
+  });
+
+  test('displays DECLINED status with error color', async () => {
+    const declinedAlerts = {
+      high_risk_claims: [
+        {
+          claim_id: 'CLM004',
+          customer_id: 'CUST004',
+          amount: 40000,
+          claim_status: 'DECLINED',
+          risk_score: 0.95
+        }
+      ]
+    };
+    axios.get.mockResolvedValueOnce({ data: declinedAlerts });
+
+    render(<HighRiskAlerts />);
+
+    await waitFor(() => {
+      expect(screen.getByText('DECLINED')).toBeInTheDocument();
+    });
+  });
+
+  test('displays high risk score (>8) with error color', async () => {
+    const highRiskAlerts = {
+      high_risk_claims: [
+        {
+          claim_id: 'CLM005',
+          customer_id: 'CUST005',
+          amount: 60000,
+          claim_status: 'PENDING',
+          risk_score: 8.5
+        }
+      ]
+    };
+    axios.get.mockResolvedValueOnce({ data: highRiskAlerts });
+
+    render(<HighRiskAlerts />);
+
+    await waitFor(() => {
+      expect(screen.getByText('8.5')).toBeInTheDocument();
     });
   });
 });

@@ -278,8 +278,8 @@ describe('AdminDashboard', () => {
       );
     });
 
-    const loadingElems = screen.getAllByText(/loading/i);
-    expect(loadingElems.length).toBeGreaterThan(0);
+  const spinners = screen.getAllByRole('progressbar');
+  expect(spinners.length).toBeGreaterThan(0);
   });
 
   test('updates UI after successful policy approval', async () => {
@@ -320,7 +320,7 @@ describe('AdminDashboard', () => {
 
     // After approval, the policy should be removed
     await waitFor(() => {
-      expect(screen.getByText('There are no policies awaiting approval.')).toBeInTheDocument();
+  expect(screen.getByText('No policies awaiting approval.')).toBeInTheDocument();
     });
   });
 
@@ -432,7 +432,7 @@ describe('AdminDashboard', () => {
       render(<BrowserRouter><AdminDashboard /></BrowserRouter>);
     });
     await waitFor(() => expect(screen.getByText('POLFIN1')).toBeInTheDocument());
-    expect(screen.getByText(/Requires 'Security Officer' role/)).toBeInTheDocument();
+  expect(screen.getByText('Requires Security Officer')).toBeInTheDocument();
 
     // Second render with security officer but same approver id
     jwtDecode.mockImplementation(() => ({ admin_id: 'ADMIN123', role: 'Security Officer' }));
@@ -440,7 +440,7 @@ describe('AdminDashboard', () => {
       render(<BrowserRouter><AdminDashboard /></BrowserRouter>);
     });
     await waitFor(() => expect(screen.getAllByText('POLFIN1')[0]).toBeInTheDocument());
-    expect(screen.getByText(/Cannot be same approver/)).toBeInTheDocument();
+  expect(screen.getByText('Cannot be same approver')).toBeInTheDocument();
   });
 
   test('policy action shows status text when not pending states', async () => {
@@ -480,8 +480,9 @@ describe('AdminDashboard', () => {
     await act(async () => {
       render(<BrowserRouter><AdminDashboard /></BrowserRouter>);
     });
-    // We expect the action cell to show 'Loading user...' because currentUser is null
-    await waitFor(() => expect(screen.getByText('POLX')).toBeInTheDocument());
-    expect(screen.getByText(/Loading user.../i)).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText('POLX')).toBeInTheDocument());
+  const row = screen.getByText('POLX').closest('tr');
+  expect(row).toBeTruthy();
+  expect(within(row).getAllByRole('progressbar').length).toBeGreaterThan(0);
   });
 });

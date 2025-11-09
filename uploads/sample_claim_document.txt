@@ -1,0 +1,12 @@
+Insurance Claim Document
+
+Policy ID: POL_BUY_1762665929841
+Claim ID: CLM2024789
+
+Description: Medical expenses for hospital visit
+
+Amount: 5000
+
+Date: November 9, 2025
+
+This is a claim for reimbursement of medical expenses incurred during a hospital visit.

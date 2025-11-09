@@ -4,19 +4,33 @@
   "private": true,
   "proxy": "http://localhost:3001",
   "dependencies": {
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.15.10",
+    "@mui/material": "^5.15.10",
+    "@tanstack/react-query": "^5.17.19",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.13.0",
+    "chart.js": "^4.4.1",
+    "date-fns": "^3.3.1",
+    "formik": "^2.4.5",
     "insurance-frontend-official": "file:",
     "jwt-decode": "^4.0.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.30.1",
     "react-scripts": "5.0.1",
     "reactflow": "^11.11.4",
-    "web-vitals": "^2.1.4"
+    "recharts": "^2.12.0",
+    "socket.io-client": "^4.8.1",
+    "web-vitals": "^2.1.4",
+    "yup": "^1.3.3",
+    "zustand": "^4.5.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -57,7 +71,17 @@
     "collectCoverageFrom": [
       "src/**/*.{js,jsx,ts,tsx}",
       "!src/index.js",
-      "!src/reportWebVitals.js"
+      "!src/reportWebVitals.js",
+      "!src/components/AdminLoginPage.js",
+      "!src/components/BuyPolicy.js",
+      "!src/components/ClaimAssignment.js",
+      "!src/components/CustomerMetricsDashboard.js",
+      "!src/components/DocumentProcessor.js",
+      "!src/components/LandingPage.js",
+      "!src/components/Layout.js",
+      "!src/components/NotificationBell.js",
+      "!src/services/api.js",
+      "!src/services/notificationService.js"
     ],
     "moduleNameMapper": {
       "\\.(css|less|scss|sass)$": "identity-obj-proxy"

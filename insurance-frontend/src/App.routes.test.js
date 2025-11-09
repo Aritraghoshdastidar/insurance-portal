@@ -4,6 +4,12 @@ import App from './App';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock child components to keep tests lightweight and focus on App routing logic
+jest.mock('./components/Layout', () => ({ onLogout, children }) => (
+  <div>
+    <button onClick={onLogout}>Logout</button>
+    {children}
+  </div>
+));
 jest.mock('./components/AdminDashboard', () => () => <div>Admin Dashboard</div>);
 jest.mock('./components/Dashboard', () => () => <div>User Dashboard</div>);
 jest.mock('./components/RegistrationPage', () => () => <div>Register Page</div>);
@@ -14,6 +20,20 @@ jest.mock('./components/DocumentProcessor', () => () => <div>Docs</div>);
 jest.mock('./components/HighRiskAlerts', () => () => <div>Alerts</div>);
 jest.mock('./components/WorkflowMetricsDashboard', () => () => <div>Metrics</div>);
 jest.mock('./components/OverdueTasksReport', () => () => <div>Overdue</div>);
+
+// Mock notification service to prevent real socket connections during tests
+jest.mock('./services/notificationService', () => ({
+  connect: jest.fn(),
+  requestPermission: jest.fn(),
+  loadNotifications: jest.fn(),
+  getNotifications: jest.fn(() => []),
+  getUnreadCount: jest.fn(() => 0),
+  subscribe: jest.fn(() => jest.fn()),
+  markAsRead: jest.fn(),
+  markAllAsRead: jest.fn(),
+  clearAll: jest.fn(),
+  disconnect: jest.fn(),
+}));
 
 // Mock jwt-decode to control user and expiry
 jest.mock('jwt-decode', () => ({
@@ -53,7 +73,7 @@ describe('App routing', () => {
       </MemoryRouter>
     );
     
-    expect(screen.getByText(/Admin Dashboard/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/Admin Dashboard/i).length).toBeGreaterThan(0);
   });
 
   test('shows user dashboard when non-admin token present', () => {

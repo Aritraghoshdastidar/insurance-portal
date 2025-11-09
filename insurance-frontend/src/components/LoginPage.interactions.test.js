@@ -9,7 +9,7 @@ describe('LoginPage interactions', () => {
     jest.clearAllMocks();
   });
 
-  test('toggles admin login and shows error on bad credentials', async () => {
+  test('shows error on bad credentials', async () => {
     const onLoginSuccess = jest.fn();
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
@@ -22,15 +22,12 @@ describe('LoginPage interactions', () => {
       </BrowserRouter>
     );
 
-    // Toggle admin
-    fireEvent.click(screen.getByLabelText(/Login as Admin/i));
-
     // Fill inputs
     fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'a@b.com' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'secret' } });
 
     // Submit
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Invalid credentials/i)).toBeInTheDocument();
@@ -53,7 +50,7 @@ describe('LoginPage interactions', () => {
 
     fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'a@b.com' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'secret' } });
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+  fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
       expect(onLoginSuccess).toHaveBeenCalledWith('token123');

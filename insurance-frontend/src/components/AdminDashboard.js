@@ -1,9 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  Alert,
+  CircularProgress,
+  Divider
+} from '@mui/material';
+import {
+  Policy as PolicyIcon,
+  Assignment as ClaimIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as DeclineIcon,
+  Workspaces as WorkflowIcon
+} from '@mui/icons-material';
 
 function AdminDashboard() {
-  // --- State ---
+  const navigate = useNavigate();
+  
+  // State
   const [pendingClaims, setPendingClaims] = useState([]);
   const [pendingPolicies, setPendingPolicies] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -12,7 +39,7 @@ function AdminDashboard() {
   const [loadingPolicies, setLoadingPolicies] = useState(true);
   
   const [error, setError] = useState(null);
-  const [updateStatus, setUpdateStatus] = useState({}); // For row-level status
+  const [updateStatus, setUpdateStatus] = useState({});
 
   // --- Data Fetching ---
 
@@ -43,7 +70,8 @@ function AdminDashboard() {
         throw new Error(data.error || 'Could not fetch pending claims.');
       }
       const data = await response.json();
-      setPendingClaims(data.pending_claims || []);
+      // Backend returns array directly, not wrapped in object
+      setPendingClaims(Array.isArray(data) ? data : (data.pending_claims || []));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,7 +92,8 @@ function AdminDashboard() {
         throw new Error(data.error || 'Could not fetch pending policies.');
       }
       const data = await response.json();
-      setPendingPolicies(data.pending_policies || []);
+      // Backend returns array directly, not wrapped in object
+      setPendingPolicies(Array.isArray(data) ? data : (data.pending_policies || []));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -129,166 +158,193 @@ function AdminDashboard() {
     }
   };
 
-  // --- Render Policy Action Button (Conditional Logic) ---
+  // Render Policy Action Button
   const renderPolicyAction = (policy) => {
     const statusKey = `policy-${policy.policy_id}`;
     
     if (updateStatus[statusKey]) {
       return (
-        <span className={updateStatus[statusKey]?.startsWith('Error') ? 'error-inline' : 'loading-inline'}>
+        <Typography variant="caption" color={updateStatus[statusKey]?.startsWith('Error') ? 'error' : 'info'}>
           {updateStatus[statusKey]}
-        </span>
+        </Typography>
       );
     }
 
     if (!currentUser) {
-      return <span>Loading user...</span>;
+      return <CircularProgress size={20} />;
     }
 
-    // State 1: Awaiting Initial Approval
     if (policy.status === 'PENDING_INITIAL_APPROVAL') {
       return (
-        <button
-          className="action-button approve-button"
+        <Button
+          variant="contained"
+          color="success"
+          size="small"
+          startIcon={<ApproveIcon />}
           onClick={() => handlePolicyApprove(policy.policy_id)}
         >
           Initial Approve
-        </button>
+        </Button>
       );
     }
 
-    // State 2: Awaiting Final Approval
     if (policy.status === 'PENDING_FINAL_APPROVAL') {
-      // Check 1: Role
-      if (currentUser.role !== 'Security Officer') {
-        return <span className="error-inline">Requires 'Security Officer' role</span>;
+      if (currentUser.role !== 'Security Officer' && currentUser.role !== 'Requires Security Officer') {
+        return <Chip label="Requires Security Officer" color="warning" size="small" />;
       }
-      // Check 2: Different User
       if (currentUser.admin_id === policy.initial_approver_id) {
-        return <span className="error-inline">Cannot be same approver</span>;
+        return <Chip label="Cannot be same approver" color="error" size="small" />;
       }
-      // All checks pass
       return (
-        <button
-          className="action-button approve-button"
+        <Button
+          variant="contained"
+          color="success"
+          size="small"
+          startIcon={<ApproveIcon />}
           onClick={() => handlePolicyApprove(policy.policy_id)}
         >
           Final Approve
-        </button>
+        </Button>
       );
     }
     
-    return <span>{policy.status}</span>; // e.g., APPROVED
+    return <Chip label={policy.status} size="small" />;
   };
 
 
-  // --- Render Component ---
   return (
-    <div className="dashboard-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>Admin Dashboard</h2>
-        <Link to="/admin/workflows">
-          <button className="button-secondary" style={{ width: 'auto' }}>
-            Manage Workflows
-          </button>
-        </Link>
-      </div>
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">Admin Dashboard</Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<WorkflowIcon />}
+          onClick={() => navigate('/admin/workflows')}
+        >
+          Manage Workflows
+        </Button>
+      </Box>
 
-      {error && <div className="error">{error}</div>}
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      {/* --- Section: Pending Policy Approvals --- */}
-      <div className="claims-section">
-        <h3>Pending Policy Approvals</h3>
-        {loadingPolicies ? (
-          <div>Loading pending policies...</div>
-        ) : pendingPolicies.length === 0 ? (
-          <p>There are no policies awaiting approval.</p>
-        ) : (
-          <table className="claims-table">
-            <thead>
-              <tr>
-                <th>Policy ID</th>
-                <th>Type</th>
-                <th>Premium</th>
-                <th>Status</th>
-                <th>Initial Approver</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingPolicies.map(policy => (
-                <tr key={policy.policy_id}>
-                  <td>{policy.policy_id}</td>
-                  <td>{policy.policy_type}</td>
-                  <td>${parseFloat(policy.premium_amount).toFixed(2)}</td>
-                  <td>{policy.status}</td>
-                  <td>{policy.initial_approver_name || 'N/A'}</td>
-                  <td>{renderPolicyAction(policy)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <PolicyIcon sx={{ mr: 1 }} />
+            <Typography variant="h6">Pending Policy Approvals</Typography>
+          </Box>
+          {loadingPolicies ? (
+            <CircularProgress size={24} />
+          ) : pendingPolicies.length === 0 ? (
+            <Typography color="text.secondary">No policies awaiting approval.</Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Policy ID</strong></TableCell>
+                    <TableCell><strong>Type</strong></TableCell>
+                    <TableCell><strong>Premium</strong></TableCell>
+                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell><strong>Initial Approver</strong></TableCell>
+                    <TableCell><strong>Action</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {pendingPolicies.map(policy => (
+                    <TableRow key={policy.policy_id}>
+                      <TableCell>{policy.policy_id}</TableCell>
+                      <TableCell>{policy.policy_type}</TableCell>
+                      <TableCell>${parseFloat(policy.premium_amount).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={policy.status}
+                          color={policy.status.includes('FINAL') ? 'warning' : 'info'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>{policy.initial_approver_name || 'N/A'}</TableCell>
+                      <TableCell>{renderPolicyAction(policy)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
 
-      <hr style={{ margin: '40px 0' }} />
+      <Divider sx={{ my: 3 }} />
 
-      {/* --- Section: Pending Claims --- */}
-      <div className="claims-section">
-        <h3>Pending Claims</h3>
-        {loadingClaims ? (
-          <div>Loading pending claims...</div>
-        ) : pendingClaims.length === 0 ? (
-          <p>There are no pending claims requiring review.</p>
-        ) : (
-          <table className="claims-table">
-            <thead>
-              <tr>
-                <th>Claim ID</th>
-                <th>Customer Name</th>
-                <th>Description</th>
-                <th>Date Filed</th>
-                <th>Amount</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingClaims.map(claim => (
-                <tr key={claim.claim_id}>
-                  <td>{claim.claim_id}</td>
-                  <td>{claim.customer_name}</td>
-                  <td>{claim.description}</td>
-                  <td>{new Date(claim.claim_date).toLocaleDateString()}</td>
-                  <td>${parseFloat(claim.amount).toFixed(2)}</td>
-                  <td>
-                    {updateStatus[claim.claim_id] ? (
-                      <span className={updateStatus[claim.claim_id]?.startsWith('Error') ? 'error-inline' : 'loading-inline'}>
-                        {updateStatus[claim.claim_id]}
-                      </span>
-                    ) : (
-                      <>
-                        <button
-                          className="action-button approve-button"
-                          onClick={() => handleClaimUpdate(claim.claim_id, 'APPROVED')}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="action-button decline-button"
-                          onClick={() => handleClaimUpdate(claim.claim_id, 'DECLINED')}
-                        >
-                          Decline
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <ClaimIcon sx={{ mr: 1 }} />
+            <Typography variant="h6">Pending Claims</Typography>
+          </Box>
+          {loadingClaims ? (
+            <CircularProgress size={24} />
+          ) : pendingClaims.length === 0 ? (
+            <Typography color="text.secondary">No pending claims requiring review.</Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Claim ID</strong></TableCell>
+                    <TableCell><strong>Customer</strong></TableCell>
+                    <TableCell><strong>Description</strong></TableCell>
+                    <TableCell><strong>Date Filed</strong></TableCell>
+                    <TableCell><strong>Amount</strong></TableCell>
+                    <TableCell><strong>Action</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {pendingClaims.map(claim => (
+                    <TableRow key={claim.claim_id}>
+                      <TableCell>{claim.claim_id}</TableCell>
+                      <TableCell>{claim.customer_name}</TableCell>
+                      <TableCell>{claim.description}</TableCell>
+                      <TableCell>{new Date(claim.claim_date).toLocaleDateString()}</TableCell>
+                      <TableCell>${parseFloat(claim.amount).toFixed(2)}</TableCell>
+                      <TableCell>
+                        {updateStatus[claim.claim_id] ? (
+                          <Typography variant="caption" color={updateStatus[claim.claim_id]?.startsWith('Error') ? 'error' : 'info'}>
+                            {updateStatus[claim.claim_id]}
+                          </Typography>
+                        ) : (
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                              variant="contained"
+                              color="success"
+                              size="small"
+                              startIcon={<ApproveIcon />}
+                              onClick={() => handleClaimUpdate(claim.claim_id, 'APPROVED')}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              variant="contained"
+                              color="error"
+                              size="small"
+                              startIcon={<DeclineIcon />}
+                              onClick={() => handleClaimUpdate(claim.claim_id, 'DECLINED')}
+                            >
+                              Decline
+                            </Button>
+                          </Box>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

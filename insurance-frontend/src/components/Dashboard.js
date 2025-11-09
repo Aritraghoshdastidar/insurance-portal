@@ -1,36 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
-import FileClaim from './FileClaim'; // 👈 You already have this
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  Alert,
+  CircularProgress,
+  Grid,
+  Divider,
+  IconButton,
+  Tooltip
+} from '@mui/material';
+import {
+  Policy as PolicyIcon,
+  Assignment as ClaimIcon,
+  Notifications as NotificationIcon,
+  ShoppingCart as BuyIcon,
+  Refresh as RefreshIcon
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import FileClaim from './FileClaim';
 
 function Dashboard() {
+  const navigate = useNavigate();
+  
   // State for Claims
   const [claims, setClaims] = useState([]);
   const [loadingClaims, setLoadingClaims] = useState(true);
   const [errorClaims, setErrorClaims] = useState(null);
 
-  // ---  State for Policies ---
+  // State for Policies
   const [policies, setPolicies] = useState([]);
   const [loadingPolicies, setLoadingPolicies] = useState(true);
   const [errorPolicies, setErrorPolicies] = useState(null);
-  const [activationStatus, setActivationStatus] = useState({}); // For row-level status
-  // Track in-flight activations to prevent duplicate requests per policy
+  const [activationStatus, setActivationStatus] = useState({});
   const activatingRef = useRef(new Set());
 
-// --- State for Notifications (IWAS-F-041) ---
+  // State for Notifications
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [errorNotifications, setErrorNotifications] = useState(null);
 
-  // 1. fetchClaims (your existing function, renamed loading/error)
+  // Fetch Claims
   const fetchClaims = async () => {
     try {
       setLoadingClaims(true);
+      setErrorClaims(null);
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:3001/api/my-claims', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Could not fetch claims.');
       const data = await response.json();
-      setClaims(data.claims || data);
+      // Handle both array and object with claims property
+      setClaims(Array.isArray(data) ? data : (data.claims || []));
     } catch (err) {
       setErrorClaims(err.message);
     } finally {
@@ -38,18 +70,19 @@ function Dashboard() {
     }
   };
 
-  // --- fetchPolicies ---
+  // Fetch Policies
   const fetchPolicies = async () => {
     try {
       setLoadingPolicies(true);
-      setErrorPolicies(null); // Clear previous errors
+      setErrorPolicies(null);
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:3001/api/my-policies', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Could not fetch policies.');
       const data = await response.json();
-      setPolicies(data.policies || data);
+      // Handle both array and object with policies property
+      setPolicies(Array.isArray(data) ? data : (data.policies || []));
     } catch (err) {
       setErrorPolicies(err.message);
     } finally {
@@ -57,7 +90,7 @@ function Dashboard() {
     }
   };
 
-  // --- fetchNotifications (IWAS-F-041) ---
+  // Fetch Notifications
   const fetchNotifications = async () => {
     try {
       setLoadingNotifications(true);
@@ -68,37 +101,43 @@ function Dashboard() {
       });
       if (!response.ok) throw new Error('Could not fetch notifications.');
       const data = await response.json();
-      setNotifications(data.notifications || data);
+      // Handle both array and object with notifications property
+      setNotifications(Array.isArray(data) ? data : (data.notifications || []));
     } catch (err) {
       setErrorNotifications(err.message);
     } finally {
       setLoadingNotifications(false);
     }
-  };  // 2. useEffect now calls both
+  };
+
   useEffect(() => {
     fetchClaims();
     fetchPolicies();
-    fetchNotifications(); // IWAS-F-041
-  }, []); 
+    fetchNotifications();
+  }, []);
 
-  // 3. handleClaimFiled (your existing function)
   const handleClaimFiled = () => {
-    fetchClaims(); // This refreshes the claims list
+    fetchClaims();
   };
 
-  // --- handleActivatePolicy (Mock Payment) ---
+  // Refresh all data
+  const handleRefreshAll = () => {
+    fetchClaims();
+    fetchPolicies();
+    fetchNotifications();
+  };
+
+  // Handle Policy Activation
   const handleActivatePolicy = async (policyId) => {
-    // Show a simple confirmation for the mock payment
-    if (!window.confirm("This is a mock payment.\nDo you want to simulate a successful payment and activate this policy?")) {
+    if (!window.confirm("This is a mock payment.\nDo you want to simulate a successful payment and enter the approval workflow?")) {
       return;
     }
 
-    // Prevent duplicate activations while one is in progress for this policy
     const inFlightRef = activatingRef.current;
     if (inFlightRef.has(policyId)) return;
     inFlightRef.add(policyId);
 
-    setActivationStatus(prev => ({ ...prev, [policyId]: 'Activating...' }));
+    setActivationStatus(prev => ({ ...prev, [policyId]: 'Processing...' }));
     
     try {
       const token = localStorage.getItem('token');
@@ -113,154 +152,220 @@ function Dashboard() {
         throw new Error(data.error || 'Could not activate policy.');
       }
 
-      // Success! Refresh the policy list to show the new "ACTIVE" status
-      console.log('Mock activation successful:', data.message);
-      setActivationStatus(prev => ({ ...prev, [policyId]: 'Activated!' }));
-      fetchPolicies(); // Refresh the list
+      // Show appropriate message based on final status
+      const successMsg = data.status === 'PENDING_INITIAL_APPROVAL' 
+        ? 'Payment successful! Policy awaiting approval.' 
+        : data.status === 'DENIED_UNDERWRITER'
+        ? 'Payment received but policy was denied.'
+        : data.status === 'ACTIVE'
+        ? 'Activated!'
+        : 'Payment successful! Under review.';
+        
+      setActivationStatus(prev => ({ ...prev, [policyId]: successMsg }));
+      fetchPolicies();
 
     } catch (err) {
       console.error('Mock Activation Error:', err);
       setActivationStatus(prev => ({ ...prev, [policyId]: `Error: ${err.message}` }));
     } finally {
-      // Clear in-flight marker so subsequent attempts are allowed
       inFlightRef.delete(policyId);
     }
   };
 
+  const getStatusColor = (status) => {
+    const statusLower = status?.toLowerCase() || '';
+    if (statusLower.includes('active') && !statusLower.includes('inactive')) return 'success';
+    if (statusLower.includes('pending') || statusLower.includes('awaiting') || statusLower.includes('review')) return 'warning';
+    if (statusLower.includes('declined') || statusLower.includes('rejected') || statusLower.includes('denied')) return 'error';
+    if (statusLower.includes('inactive')) return 'default';
+    return 'info';
+  };
 
-  // --- Render ---
   return (
-    <div className="dashboard-container">
-      
-      {/* --- Notifications Section (IWAS-F-041) --- */}
-      <h2>Recent Notifications <span role="img" aria-label="bell">🔔</span></h2>
-      {loadingNotifications ? (
-         <div>Loading notifications...</div>
-       ) : errorNotifications ? (
-         <div className="error">{errorNotifications}</div>
-       ) : notifications && Array.isArray(notifications) ? (
-         notifications.length === 0 ? (
-           <p>No recent notifications.</p>
-         ) : (
-           <ul className="notifications-list"> {/* Use class from App.css */}
-             {notifications.map(notif => (
-               <li key={notif.notification_id}>
-                 <small>{new Date(notif.sent_timestamp).toLocaleString()}</small>
-                 <p>{notif.message}</p>
-               </li>
-             ))}
-           </ul>
-         )
-       ) : (
-         <div className="error">Error loading notifications</div>
-       )}
-      <hr className="section-divider" />
-      
-      {/* ---  Policies Section --- */}
-      <h2>My Policies</h2>
-      {loadingPolicies ? (
-        <div>Loading policies...</div>
-      ) : errorPolicies ? (
-        <div className="error">{errorPolicies}</div>
-      ) : !policies || !Array.isArray(policies) ? (
-        <div className="error">Error loading policies</div>
-      ) : policies.length === 0 ? (
-        <p>No policies found</p>
-      ) : (
-        <table className="claims-table" style={{ marginBottom: '40px' }}>
-          <thead>
-            <tr>
-              <th>Policy ID</th>
-              <th>Type</th>
-              <th>Premium</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {policies.map(policy => {
-              const statusMsg = activationStatus[policy.policy_id];
-              return (
-                <tr key={policy.policy_id}>
-                  <td>{policy.policy_id}</td>
-                  <td>{policy.policy_type}</td>
-                  <td>${parseFloat(policy.premium_amount).toFixed(2)}</td>
-                  <td>
-                    <span className={`status status-${policy.status.toLowerCase().replace(/_/g, '-')}`}>
-                       {policy.status.replace(/_/g, ' ')} {/* Make status more readable */}
-                    </span>
-                  </td>
-                  <td>
-                    {/* Show button ONLY if payment is needed */}
-                    {policy.status === 'INACTIVE_AWAITING_PAYMENT' && !statusMsg && (
-                      <button
-                        className="action-button approve-button" // Using approve style
-                        onClick={() => handleActivatePolicy(policy.policy_id)}
-                      >
-                        Activate (Mock Pay)
-                      </button>
-                    )}
-                    {/* Show status message during/after activation attempt */}
-                    {statusMsg && (
-                      <span className={statusMsg.startsWith('Error') ? 'error-inline' : 'loading-inline'}>
-                        {statusMsg}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+    <Box>
+      {/* Header with Action Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          Customer Dashboard
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Tooltip title="Refresh all data">
+            <IconButton onClick={handleRefreshAll} color="primary">
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<BuyIcon />}
+            onClick={() => navigate('/buy-policy')}
+            sx={{
+              py: 1.5,
+              px: 4,
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+              '&:hover': {
+                boxShadow: '0 6px 16px rgba(102, 126, 234, 0.6)',
+                transform: 'translateY(-2px)',
+              },
+              transition: 'all 0.3s ease',
+            }}
+          >
+            Buy New Policy
+          </Button>
+        </Box>
+      </Box>
 
-      {/* --- Existing Claims Section --- */}
-      <FileClaim onClaimFiled={handleClaimFiled} />
+      {/* Notifications Section */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <NotificationIcon sx={{ mr: 1 }} />
+            <Typography variant="h6">Recent Notifications</Typography>
+          </Box>
+          {loadingNotifications ? (
+            <CircularProgress size={24} />
+          ) : errorNotifications ? (
+            <Alert severity="error">{errorNotifications}</Alert>
+          ) : notifications && Array.isArray(notifications) && notifications.length === 0 ? (
+            <Typography color="text.secondary">No recent notifications.</Typography>
+          ) : (
+            <Box>
+              {notifications.slice(0, 5).map(notif => (
+                <Box key={notif.notification_id} sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(notif.sent_timestamp).toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2">{notif.message}</Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
 
-      <h2 style={{marginTop: '40px'}}>My Claims</h2>
-      {loadingClaims ? (
-        <div>Loading claims...</div>
-      ) : errorClaims ? (
-        <div className="error">{errorClaims}</div>
-      ) : !claims || !Array.isArray(claims) ? (
-        <div className="error">Could not fetch claims.</div>
-      ) : claims.length === 0 ? (
-        <p>No claims found</p>
-      ) : (
-        <table className="claims-table">
-          <thead>
-            <tr>
-              <th>Claim ID</th>
-              <th>Description</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {claims.map(claim => (
-              <tr key={claim.claim_id}>
-                <td>{claim.claim_id}</td>
-                <td>{claim.description}</td>
-                <td>${parseFloat(claim.amount).toFixed(2)}</td>
-                <td>
-                  <span className={`status status-${claim.status ? claim.status.toLowerCase() : 'pending'}`}>
-                    {claim.status || 'PENDING'}
-                  </span>
-                </td>
-                <td>
-                  {claim.status === 'PENDING' && (
-                    <button className="action-button" disabled>
-                      Processing
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+      {/* Policies Section */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <PolicyIcon sx={{ mr: 1 }} />
+            <Typography variant="h6">My Policies</Typography>
+          </Box>
+          {loadingPolicies ? (
+            <CircularProgress size={24} />
+          ) : errorPolicies ? (
+            <Alert severity="error">{errorPolicies}</Alert>
+          ) : !policies || !Array.isArray(policies) || policies.length === 0 ? (
+            <Typography color="text.secondary">No policies found</Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Policy ID</strong></TableCell>
+                    <TableCell><strong>Type</strong></TableCell>
+                    <TableCell><strong>Premium</strong></TableCell>
+                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell><strong>Action</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {policies.map(policy => {
+                    const statusMsg = activationStatus[policy.policy_id];
+                    return (
+                      <TableRow key={policy.policy_id}>
+                        <TableCell>{policy.policy_id}</TableCell>
+                        <TableCell>{policy.policy_type}</TableCell>
+                        <TableCell>${parseFloat(policy.premium_amount).toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={policy.status.replace(/_/g, ' ')}
+                            color={getStatusColor(policy.status)}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {policy.status === 'INACTIVE_AWAITING_PAYMENT' && !statusMsg && (
+                            <Button
+                              variant="contained"
+                              color="success"
+                              size="small"
+                              onClick={() => handleActivatePolicy(policy.policy_id)}
+                            >
+                              Activate (Mock Pay)
+                            </Button>
+                          )}
+                          {statusMsg && (
+                            <Typography variant="caption" color={statusMsg.startsWith('Error') ? 'error' : 'info'}>
+                              {statusMsg}
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* File Claim Section */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <FileClaim onClaimFiled={handleClaimFiled} />
+        </CardContent>
+      </Card>
+
+      {/* Claims Section */}
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <ClaimIcon sx={{ mr: 1 }} />
+            <Typography variant="h6">My Claims</Typography>
+          </Box>
+          {loadingClaims ? (
+            <CircularProgress size={24} />
+          ) : errorClaims ? (
+            <Alert severity="error">{errorClaims}</Alert>
+          ) : !claims || !Array.isArray(claims) || claims.length === 0 ? (
+            <Typography color="text.secondary">No claims found</Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Claim ID</strong></TableCell>
+                    <TableCell><strong>Description</strong></TableCell>
+                    <TableCell><strong>Amount</strong></TableCell>
+                    <TableCell><strong>Status</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {claims.map(claim => (
+                    <TableRow key={claim.claim_id}>
+                      <TableCell>{claim.claim_id}</TableCell>
+                      <TableCell>{claim.description}</TableCell>
+                      <TableCell>${parseFloat(claim.amount).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={claim.status || 'PENDING'}
+                          color={getStatusColor(claim.status)}
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

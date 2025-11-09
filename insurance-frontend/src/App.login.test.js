@@ -25,15 +25,15 @@ describe('App login flow', () => {
 
   test('successful login updates token and shows dashboard', async () => {
     render(
-  <MemoryRouter>
-    <App />
-  </MemoryRouter>
-  );
+      <MemoryRouter initialEntries={['/login']}>
+        <App />
+      </MemoryRouter>
+    );
 
     // Fill form from LoginPage rendered by App
     fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'a@b.com' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'secret' } });
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Sign In/i }));
 
     await waitFor(() => {
       expect(localStorage.getItem('token')).toBe('token-app');
