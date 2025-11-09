@@ -1,0 +1,192 @@
+Software Test Plan (STP) – Insurance Workflow Automation System
+
+Project: Insurance Workflow Automation System (IWAS)
+Version: 1.0
+Authors: ARITRA - PES1UG23AM064, ARCHITA - PES1UG23AM063, BSHRIKRISHNA - PES1UG23AM075, BHARGAVI - PES1UG23AM077
+Date: 09-11-2025
+Status: Final (branch: feat/features_combined)
+
+--------------------------------------------------
+1. INTRODUCTION
+Purpose:
+Defines the test plan for IWAS v1.0: objectives, scope, approach, environment, and responsibilities.
+
+Objectives:
+- Validate functional correctness (policies, claims, payments, notifications, analytics).
+- Ensure non-functional aspects where applicable.
+- Maintain ≥ 75% coverage (statements, branches, functions, lines).
+- All critical workflows have passing automated tests.
+
+References:
+- TEST_COMPLIANCE_REPORT.md
+- docs/API.md
+
+--------------------------------------------------
+2. SCOPE
+In-Scope Functional Areas:
+- Authentication & Authorization (JWT)
+- Customer registration and login
+- Policy lifecycle (create, update, renew, mock activation)
+- Claims submission, triage, approval workflow (Adjuster/Admin)
+- Notifications and alerts (risk, SLA overdue tasks)
+- Analytics / workflow metrics dashboards
+- Mock payment activation endpoint
+
+Out of Scope (this iteration):
+- Real third-party payment gateway integration
+- External regulator data ingestion
+- Hardware peripherals (printers, scanners)
+
+--------------------------------------------------
+3. TEST ITEMS
+Backend (Node.js / Express):
+- Routes: authRoutes, customerRoutes, policyRoutes, claimRoutes, paymentRoutes, analyticsRoutes
+- Services: authService, paymentService, analyticsService, notificationService, premiumCalculatorService
+- Middleware/Utilities: auth, validation, rateLimiter, errorHandler, logger, errors
+
+Frontend (React):
+- Components: Dashboard, AdminDashboard, AdjusterDashboard, HighRiskAlerts, OverdueTasksReport, LoginPage, WorkflowMetricsDashboard, BuyPolicy, LandingPage, Layout
+
+--------------------------------------------------
+4. FEATURES TO BE TESTED
+INS-F-001: Customer registration and authentication (JWT, protected routes)
+INS-F-010: Policy creation, update, renewal, activation (mock payment)
+INS-F-020: Premium payment and receipt confirmation (mock activation API)
+INS-F-030: Claim submission, assignment, approval/decline workflow
+INS-F-040: Notifications, high-risk alerts, overdue/SLA tracking
+INS-F-050: Analytics dashboards and workflow metrics
+INS-NF-001: Response time target ≤ 5 seconds (best-effort)
+INS-NF-002: Data security and access control (JWT validation, role checks)
+
+--------------------------------------------------
+5. FEATURES NOT TO BE TESTED
+- Real payment gateway APIs
+- External regulator data integration
+- Hardware dependencies (printers, scanners)
+
+--------------------------------------------------
+6. TEST APPROACH / STRATEGY
+Levels:
+- Unit Testing:
+  Frontend: Jest + React Testing Library (rendering, state, branches)
+  Backend: Jest + Supertest (controllers, middleware, services with mocks)
+- Integration Testing:
+  Frontend: Routing + auth redirects + composite UI flows
+  Backend: Express app with mocked DB via mysql2/promise
+- System Testing (composed automated flows):
+  Policy activation (click → mock API → status update)
+  Claim workflow (submit → assign → approve/decline)
+  Risk and overdue alerts propagation
+- UAT (Planned post-merge):
+  Stakeholder scripts for sign-off
+
+Types:
+- Functional (happy paths, error handling)
+- Regression (automated suite on each change)
+- Security (JWT presence, protected route denial)
+- Performance smoke (basic latency; deeper load deferred)
+
+Tooling:
+- Jest, React Testing Library, Supertest
+- jest.mock for axios/fetch, jwt, mysql2/promise, socket.io-client
+- Coverage via Istanbul (Jest)
+- Reports: Text + lcov (insurance-frontend/coverage)
+
+Entry Criteria:
+- Build compiles
+- App/server export available
+- Test data/mocks prepared
+- Environment variables resolved (tokens, base URLs)
+
+Exit Criteria:
+- All planned tests pass (unit + integration + system)
+- Coverage ≥ 75% (statements, branches, functions, lines)
+- No Critical/High defects open
+- TEST_COMPLIANCE_REPORT.md updated
+
+--------------------------------------------------
+7. TEST ENVIRONMENT
+- OS: Windows (dev) / GitHub runners (CI if enabled)
+- Backend: Node.js LTS, Express, MySQL (mocked in tests)
+- Frontend: React (CRA), jsdom
+- Database: MySQL 8.x mocked via mysql2/promise
+- Browser simulation: jsdom (real browser E2E deferred)
+- Config: .env for tokens/URLs; dynamic test ports
+
+--------------------------------------------------
+8. TEST DATA
+- Synthetic customers, policies, claims, payments
+- Sample claim document: uploads/sample_claim_document.txt
+- Mock responses (policies, claims, notifications, overdue tasks)
+- Fake JWT tokens for protected route tests
+
+--------------------------------------------------
+9. TEST DELIVERABLES
+- Test Suites: __tests__/ (backend), insurance-frontend/src/**/*.test.js (frontend)
+- Execution Logs: Jest console output
+- Coverage Reports: root + insurance-frontend/coverage/
+- Test Compliance Report: TEST_COMPLIANCE_REPORT.md
+- This Plan: docs/Software_Test_Plan_STP.txt
+- Defects: GitHub Issues / PR reviews
+
+--------------------------------------------------
+10. ROLES AND RESPONSIBILITIES
+- QA Lead: Planning, coverage enforcement, readiness reporting
+- Test Engineers: Author/maintain tests, automate, triage failures
+- Developers: Implement fixes, improve testability
+- Project Owner: Accept results, sign-off release readiness
+
+--------------------------------------------------
+11. RISKS AND MITIGATION
+Risk: Delay in stable builds
+Mitigation: Early smoke builds, feature flags, incremental merges
+
+Risk: External API dependencies
+Mitigation: Mocks/stubs, contract verification
+
+Risk: Environment downtime
+Mitigation: Ephemeral ports, reproducible setup scripts
+
+Risk: Flaky async tests
+Mitigation: waitFor usage, stable selectors, controlled timers
+
+Risk: Router/library deprecation warnings
+Mitigation: Track versions; suppress non-critical warnings
+
+--------------------------------------------------
+12. SCHEDULE & MILESTONES
+- Coverage uplift (≥75% all metrics): Complete in feat/features_combined
+- System scenarios: Implemented via composite Jest tests
+- Dedicated E2E (Cypress/Playwright): Future iteration
+- UAT: Scheduled post merge into main
+
+--------------------------------------------------
+13. ACCEPTANCE CRITERIA / APPROVALS
+Global Coverage:
+- Statements: 93.51%
+- Branches: 83.62%
+- Functions: 87.41%
+- Lines: 94.49%
+
+Per-File Branch Coverage (selected UI):
+- Dashboard: 80.23%
+- LoginPage: 91.66%
+- HighRiskAlerts: 92.85%
+- OverdueTasksReport: 85.71%
+- AdjusterDashboard: 81.81%
+
+Test Suites Passing:
+- Frontend: 20 / 20
+- Backend: 4 / 4
+Total Tests: 152 (123 frontend + 29 backend)
+
+Approvals (Pending):
+- QA Lead
+- Dev Lead
+- Project Owner
+
+--------------------------------------------------
+14. CHANGE CONTROL
+Future revisions recorded via Git commits in docs/ directory.
+
+End of Document.
