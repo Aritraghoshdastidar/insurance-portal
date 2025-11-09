@@ -35,24 +35,169 @@ This repository contains the source code and documentation for the Insurance wor
 ## 🚀 Getting Started
 
 ### Prerequisites
-- [List your prerequisites here]
+- Node.js 18+ and npm 9+
+- Docker & Docker Compose (optional but recommended)
+- MySQL 8.x running locally (default dev DB name: `insurance_db_dev`)
+- Redis (optional for caching/notifications)
+- Git
 
-### Installation
+### Environment Variables
+Create a `.env` file in the project root (sample keys shown):
+```
+DB_HOST=localhost
+DB_USER=insurance_app
+DB_PASSWORD=app_password_123
+DB_NAME=insurance_db_dev
+JWT_SECRET=dev_jwt_secret
+JWT_REFRESH_SECRET=dev_refresh_secret
+PORT=3001
+FRONTEND_URL=http://localhost:3000
+``` 
+Adjust values as needed. Do NOT commit real secrets.
+
+### Installation (Backend + Frontend)
 1. Clone the repository
-   ```bash
+   ```powershell
    git clone https://github.com/pestechnology/PESU_RR_AIML_B_P04_Insurance_workflow_automation_software_Logicore.git
    cd PESU_RR_AIML_B_P04_Insurance_workflow_automation_software_Logicore
    ```
-
-2. Install dependencies
-   ```bash
-   # Add your installation commands here
+2. Install backend (auto-installs frontend via `postinstall`):
+   ```powershell
+   npm install
+   ```
+3. (If needed) Install frontend directly:
+   ```powershell
+   cd insurance-frontend
+   npm install
+   cd ..
    ```
 
-3. Run the application
-   ```bash
-   # Add your run commands here
-   ```
+### Database Setup
+Import the provided development schema & seed data:
+```powershell
+mysql -u insurance_app -papp_password_123 insurance_db_dev < database_scripts/insurance_db_dev_backup.sql
+```
+If the DB or user doesn't exist, create them first in MySQL:
+```sql
+CREATE DATABASE insurance_db_dev;
+CREATE USER 'insurance_app'@'localhost' IDENTIFIED BY 'app_password_123';
+GRANT ALL PRIVILEGES ON insurance_db_dev.* TO 'insurance_app'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### Running (Local Dev)
+Backend (Express API):
+```powershell
+npm run dev   # nodemon app.js on port 3001 (default)
+```
+Frontend (React):
+```powershell
+cd insurance-frontend; npm start
+```
+The React dev server proxies API calls to `http://localhost:3001` (configured via `proxy` in frontend `package.json`).
+
+### Running with Docker
+Build & start containers:
+```powershell
+npm run docker:build
+npm run docker:up
+```
+View logs:
+```powershell
+npm run docker:logs
+```
+Shutdown:
+```powershell
+npm run docker:down
+```
+
+### Useful Scripts
+```powershell
+npm test          # Backend + frontend tests with coverage
+npm run test:ci   # Same as above (CI usage)
+npm run lint      # Lint backend sources
+npm run lint:fix  # Auto-fix
+```
+
+### Authentication Flow
+- Customer registers via `POST /api/v2/auth/register` → returns token + refreshToken.
+- Login endpoints:
+  - Customer: `POST /api/v2/auth/login`
+  - Admin: `POST /api/v2/auth/admin/login`
+- Use `Authorization: Bearer <token>` on protected routes.
+- Refresh: `POST /api/v2/auth/refresh` with `refreshToken`.
+
+### Sample / Demo Credentials
+You can either create fresh accounts or use seeded records from the SQL dump.
+
+Admin (set password using script):
+```powershell
+node set_adm001_password.js
+# Outputs admin email + password (default script sets admin123)
+```
+- Email: `admin@insurance.com`
+- Password (after script): `admin123`
+
+Customer (from seed data – set your own password by registering a new one, or update an existing row):
+Register a new customer:
+```bash
+POST /api/v2/auth/register
+{
+  "name": "Test User",
+  "email": "test@example.com",
+  "password": "test1234"
+}
+```
+Then login:
+```bash
+POST /api/v2/auth/login
+{
+  "email": "test@example.com",
+  "password": "test1234"
+}
+```
+
+### Frontend Usage Tips
+- Login pages: Customer and Admin have separate routes/components (`LoginPage`, `AdminLoginPage`).
+- After login the JWT is stored (check your implementation – typically localStorage or in-memory).
+- Some screens may need seeded policies/claims (already present in dev SQL dump).
+
+### Testing & Coverage
+Minimum coverage threshold is 75% (statements, branches, lines, functions). Current branch exceeds this.
+To run only backend tests:
+```powershell
+npm run test:unit
+```
+Full stack tests + coverage (already configured):
+```powershell
+npm test
+```
+Coverage reports:
+- Backend: `coverage/`
+- Frontend: `insurance-frontend/coverage/`
+
+### Troubleshooting
+| Issue | Fix |
+|-------|-----|
+| Cannot connect to MySQL | Verify `.env` DB credentials and that MySQL is running. |
+| JWT invalid / 401 | Ensure `Authorization: Bearer <token>` header and correct `JWT_SECRET`. |
+| CORS errors | Set `FRONTEND_URL` to match React dev server origin. |
+| Admin login fails | Run `node set_adm001_password.js` to (re)set ADM001 password. |
+| Frontend API 404 | Start backend (`npm run dev`) before frontend; confirm proxy in frontend `package.json`. |
+
+### Security Notes
+- Do not push real secrets or production DB credentials.
+- Rotate JWT secrets before production deployment.
+- Enforce HTTPS and stronger password policies for production.
+
+### Roadmap (Condensed)
+- Add role-based UI restrictions.
+- Implement password reset UI (backend email flow scaffolded in `notificationService`).
+- Add Cypress E2E tests.
+- Container healthchecks & production Dockerfile hardening.
+
+---
+If you encounter a setup issue not covered here, open an issue or create a short failing reproduction and tag the team.
 
 ## 📁 Project Structure
 
