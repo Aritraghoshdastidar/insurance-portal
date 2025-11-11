@@ -7,9 +7,25 @@ const { app } = require('../server');
 const mysql = require('mysql2/promise');
 const jwt = require('jsonwebtoken');
 
-jest.mock('mysql2/promise', () => ({
-  createConnection: jest.fn(),
-}));
+jest.mock('mysql2/promise', () => {
+  // Provide both createConnection (used by server.js) and createPool (used by src/config/database.js)
+  const dummyConnection = {
+    execute: jest.fn(),
+    end: jest.fn(),
+    beginTransaction: jest.fn(),
+    commit: jest.fn(),
+    rollback: jest.fn(),
+    getConnection: jest.fn().mockResolvedValue({ release: jest.fn() }),
+    connection: { _closing: false }
+  };
+  return {
+    createConnection: jest.fn().mockResolvedValue(dummyConnection),
+    createPool: jest.fn(() => ({
+      getConnection: jest.fn().mockResolvedValue({ release: jest.fn() }),
+      execute: jest.fn().mockResolvedValue([[]])
+    }))
+  };
+});
 
 jest.mock('jsonwebtoken');
 
@@ -404,9 +420,11 @@ describe('Policy Feature Endpoints', () => {
     it('POST /api/my-claims - should file new claim', async () => {
       setJwtUser({ customer_id: 'CUST123', isAdmin: false });
       mockConnection.beginTransaction.mockResolvedValue();
-      // 1) Verify policy belongs to customer
-      mockConnection.execute.mockResolvedValueOnce([[{ 1: 1 }]]);
-      // 2) INSERT claim
+      // 1) Verify policy belongs to customer and get policy details (now includes policy_date)
+      mockConnection.execute.mockResolvedValueOnce([[{ policy_date: '2025-01-01', policy_id: 'POL001' }]]);
+      // 2) Count previous claims
+      mockConnection.execute.mockResolvedValueOnce([[{ claim_count: 0 }]]);
+      // 3) INSERT claim (now includes risk_score)
       mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]);
       mockConnection.commit.mockResolvedValue();
 

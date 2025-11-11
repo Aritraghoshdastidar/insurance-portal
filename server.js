@@ -583,9 +583,12 @@ app.post('/api/my-claims', checkAuth, async (req, res) => {
         connection = await mysql.createConnection(dbConfig);
         await connection.beginTransaction(); // Start transaction
 
-        // Verify policy belongs to customer
+        // Verify policy belongs to customer and get policy details
         const [policyCheck] = await connection.execute(
-             `SELECT 1 FROM customer_policy WHERE customer_id = ? AND policy_id = ?`,
+             `SELECT p.policy_date, p.policy_id 
+              FROM customer_policy cp
+              JOIN policy p ON cp.policy_id = p.policy_id
+              WHERE cp.customer_id = ? AND cp.policy_id = ?`,
              [customer_id, policy_id]
         );
         if (policyCheck.length === 0) {
@@ -593,11 +596,30 @@ app.post('/api/my-claims', checkAuth, async (req, res) => {
              return res.status(403).json({ error: `Policy ${policy_id} does not belong to this customer.` });
         }
 
-        // Insert claim WITH workflow details
+        const policyDate = policyCheck[0].policy_date;
+        const daysSincePurchase = policyDate ? Math.floor((new Date() - new Date(policyDate)) / (1000 * 60 * 60 * 24)) : 365;
+
+        // Count previous claims by this customer
+        const [claimCount] = await connection.execute(
+            `SELECT COUNT(*) as claim_count FROM claim WHERE customer_id = ?`,
+            [customer_id]
+        );
+        const previousClaims = claimCount[0].claim_count || 0;
+
+        // Calculate risk score for the claim
+        const premiumCalcService = require('./src/services/premiumCalculatorService');
+        const riskScoreResult = premiumCalcService.calculateRiskScore({
+            amount: claimAmount,
+            previous_claims: previousClaims,
+            days_since_purchase: daysSincePurchase,
+            has_all_documents: true // Can be enhanced based on file uploads
+        });
+
+        // Insert claim WITH workflow details and risk score
         await connection.execute(
-            `INSERT INTO claim (claim_id, policy_id, customer_id, description, claim_date, claim_status, amount, status_log, workflow_id, current_step_order)
-             VALUES (?, ?, ?, ?, CURDATE(), 'PENDING', ?, ?, ?, 1)`,
-            [claim_id, policy_id, customer_id, description, claimAmount, 'Claim submitted by user.', workflow_id_to_assign]
+            `INSERT INTO claim (claim_id, policy_id, customer_id, description, claim_date, claim_status, amount, status_log, workflow_id, current_step_order, risk_score)
+             VALUES (?, ?, ?, ?, CURDATE(), 'PENDING', ?, ?, ?, 1, ?)`,
+            [claim_id, policy_id, customer_id, description, claimAmount, 'Claim submitted by user.', workflow_id_to_assign, riskScoreResult.riskScore]
         );
 
         await connection.commit(); // Commit transaction
@@ -704,7 +726,7 @@ app.post('/api/policies/buy', checkAuth, async (req, res) => {
     try {
         if (req.user.isAdmin) return res.status(403).json({ error: 'Access denied.' });
         const customer_id = req.user.customer_id;
-        const { template_policy_id } = req.body || {};
+        const { template_policy_id, premium_amount, coverage_amount, policy_term, coverage_details } = req.body || {};
         if (!template_policy_id) {
             return res.status(400).json({ error: 'template_policy_id is required.' });
         }
@@ -724,11 +746,15 @@ app.post('/api/policies/buy', checkAuth, async (req, res) => {
         const tpl = rows[0];
         const newPolicyId = 'POL_BUY_' + Date.now();
 
+        // Use calculated premium from frontend if provided, otherwise use template premium
+        const finalPremium = premium_amount || tpl.premium_amount;
+        const finalCoverageDetails = coverage_details || tpl.coverage_details || null;
+
         // Create a fresh policy for this purchase
         await connection.execute(
             `INSERT INTO policy (policy_id, policy_date, start_date, end_date, premium_amount, coverage_details, status, policy_type)
              VALUES (?, CURDATE(), NULL, NULL, ?, ?, 'INACTIVE_AWAITING_PAYMENT', ?)`,
-            [newPolicyId, tpl.premium_amount, tpl.coverage_details || null, tpl.policy_type]
+            [newPolicyId, finalPremium, finalCoverageDetails, tpl.policy_type]
         );
 
         // Link to customer
@@ -1940,10 +1966,12 @@ app.get('/api/alerts/highrisk', async (req, res) => {
   try {
     connection = await mysql.createConnection(dbConfig);
 
+    // Filter for high-value claims (>₹80L) or high risk scores (>5)
     const [rows] = await connection.execute(
       `SELECT claim_id, customer_id, amount, claim_status, risk_score
        FROM claim
-       ORDER BY amount DESC`
+       WHERE amount > 8000000 OR risk_score > 5
+       ORDER BY amount DESC, risk_score DESC`
     );
 
     res.json({ high_risk_claims: rows });

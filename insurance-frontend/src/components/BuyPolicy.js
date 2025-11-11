@@ -56,112 +56,180 @@ function BuyPolicy() {
   
   const policyCatalog = [
     {
-      id: 'LIFE_BASIC',
-      type: 'LIFE',
-      name: 'Life Insurance - Basic',
-      icon: <PersonIcon fontSize="large" color="primary" />,
-      basePremium: 50,
-      description: 'Comprehensive life insurance coverage for you and your family',
-      features: [
-        'Death benefit coverage',
-        'Accidental death benefit',
-        'Terminal illness advance',
-        '24/7 customer support',
-        'Flexible premium payments'
-      ],
-      coverageRange: [50000, 1000000],
-      termRange: [12, 360],
-      color: 'primary'
-    },
-    {
-      id: 'LIFE_PREMIUM',
-      type: 'LIFE',
-      name: 'Life Insurance - Premium',
-      icon: <SecurityIcon fontSize="large" color="secondary" />,
-      basePremium: 150,
-      description: 'Enhanced life insurance with investment benefits',
-      features: [
-        'All Basic plan features',
-        'Investment growth component',
-        'Critical illness rider',
-        'Waiver of premium benefit',
-        'Free annual health checkup'
-      ],
-      coverageRange: [100000, 5000000],
-      termRange: [12, 360],
-      color: 'secondary'
-    },
-    {
-      id: 'HEALTH_INDIVIDUAL',
+      id: 'HEALTH_INDIVIDUAL_BASIC',
       type: 'HEALTH',
-      name: 'Health Insurance - Individual',
+      name: 'Individual Health - Basic',
       icon: <HealthIcon fontSize="large" color="success" />,
-      basePremium: 100,
-      description: 'Complete health coverage for medical expenses',
+      basePremium: 800,
+      description: 'Complete mediclaim coverage for hospitalization and medical expenses',
       features: [
-        'Hospitalization coverage',
-        'Pre and post hospitalization',
-        'Ambulance charges',
-        'Day care procedures',
-        'No claim bonus'
+        'Hospitalization coverage up to policy limit',
+        'Pre-hospitalization (60 days) & Post-hospitalization (90 days)',
+        'Ambulance charges up to ₹2,000 per hospitalization',
+        'Day care procedures covered',
+        'No claim bonus - 10% increase in sum insured every claim-free year',
+        'Cashless hospitalization at 10,000+ network hospitals'
       ],
-      coverageRange: [25000, 500000],
-      termRange: [12, 36],
+      coverageRange: [200000, 500000],
+      termRange: [12, 24],
       color: 'success'
     },
     {
-      id: 'HEALTH_FAMILY',
+      id: 'HEALTH_INDIVIDUAL_PREMIUM',
       type: 'HEALTH',
-      name: 'Health Insurance - Family',
+      name: 'Individual Health - Premium',
       icon: <HealthIcon fontSize="large" color="info" />,
-      basePremium: 250,
-      description: 'Family floater health insurance plan',
+      basePremium: 1500,
+      description: 'Enhanced health insurance with critical illness cover',
       features: [
-        'All Individual plan features',
-        'Covers up to 4 family members',
-        'Maternity benefits',
-        'New born baby coverage',
-        'Preventive health checkup'
+        'All Basic plan benefits',
+        'Critical illness cover - ₹2,00,000 for 15 illnesses',
+        'OPD expenses covered up to ₹10,000 per year',
+        'Annual health check-up included',
+        'Maternity benefits - ₹50,000 (after 2 years)',
+        'Worldwide emergency cover up to ₹5,00,000'
       ],
-      coverageRange: [100000, 2000000],
+      coverageRange: [500000, 1000000],
       termRange: [12, 36],
       color: 'info'
     },
     {
-      id: 'AUTO_COMPREHENSIVE',
-      type: 'AUTO',
-      name: 'Auto Insurance - Comprehensive',
-      icon: <CarIcon fontSize="large" color="warning" />,
-      basePremium: 80,
-      description: 'Complete protection for your vehicle',
+      id: 'HEALTH_FAMILY_FLOATER',
+      type: 'HEALTH',
+      name: 'Family Floater',
+      icon: <SecurityIcon fontSize="large" color="secondary" />,
+      basePremium: 2000,
+      description: 'Comprehensive family health insurance covering 4-6 members',
       features: [
-        'Own damage coverage',
-        'Third party liability',
-        'Personal accident cover',
-        '24x7 roadside assistance',
-        'Zero depreciation add-on'
+        'Covers self, spouse, 2 children & 2 parents',
+        'Shared sum insured across all family members',
+        'Maternity & newborn coverage - ₹75,000',
+        'Vaccination expenses for children',
+        'Dental & optical expenses up to ₹15,000/year',
+        'Mental health support & counseling',
+        'Automatic restoration of sum insured once per year'
       ],
-      coverageRange: [10000, 200000],
+      coverageRange: [500000, 2500000],
       termRange: [12, 24],
+      color: 'secondary'
+    },
+    {
+      id: 'LIFE_TERM_BASIC',
+      type: 'LIFE',
+      name: 'Term Life - Basic',
+      icon: <PersonIcon fontSize="large" color="primary" />,
+      basePremium: 500,
+      description: 'Pure term insurance with affordable premiums',
+      features: [
+        'Death benefit payout to nominee',
+        'Accidental death benefit - additional ₹10,00,000',
+        'Terminal illness advance - 50% of sum assured',
+        'Waiver of premium on critical illness',
+        'Flexible premium payment - monthly/quarterly/annual',
+        'Tax benefits under Section 80C & 10(10D)'
+      ],
+      coverageRange: [1000000, 5000000],
+      termRange: [120, 360],
+      color: 'primary'
+    },
+    {
+      id: 'LIFE_TERM_PREMIUM',
+      type: 'LIFE',
+      name: 'Term Life - Premium',
+      icon: <SecurityIcon fontSize="large" color="error" />,
+      basePremium: 1200,
+      description: 'Comprehensive term insurance with critical illness rider',
+      features: [
+        'All Basic term life benefits',
+        'Critical illness cover - ₹25,00,000 for 36 illnesses',
+        'Accidental total permanent disability benefit',
+        'Income benefit option - monthly payout for 10 years',
+        'Return of premium option available',
+        'Free annual health check-up for insured'
+      ],
+      coverageRange: [5000000, 20000000],
+      termRange: [120, 480],
+      color: 'error'
+    },
+    {
+      id: 'MOTOR_TWO_WHEELER',
+      type: 'CAR',
+      name: 'Two Wheeler Insurance',
+      icon: <CarIcon fontSize="large" color="warning" />,
+      basePremium: 350,
+      description: 'Comprehensive insurance for bikes and scooters',
+      features: [
+        'Own damage cover for bike/scooter',
+        'Third party liability - unlimited',
+        'Personal accident cover - ₹15,00,000',
+        '24x7 roadside assistance',
+        'Zero depreciation add-on available',
+        'Engine protection cover',
+        'Consumables cover (engine oil, nuts, bolts, etc.)'
+      ],
+      coverageRange: [40000, 150000],
+      termRange: [12, 12],
       color: 'warning'
+    },
+    {
+      id: 'MOTOR_FOUR_WHEELER',
+      type: 'CAR',
+      name: 'Car Insurance - Comprehensive',
+      icon: <CarIcon fontSize="large" color="error" />,
+      basePremium: 1200,
+      description: 'Complete protection for your car with zero depreciation',
+      features: [
+        'Own damage cover for vehicle',
+        'Third party liability cover - unlimited',
+        'Personal accident cover for driver & passengers',
+        'Zero depreciation cover - no depreciation on claims',
+        'Engine & gearbox protection',
+        'Return to invoice cover - get car value if total loss',
+        'Roadside assistance & towing - 24x7',
+        'Key & lock replacement cover'
+      ],
+      coverageRange: [300000, 1500000],
+      termRange: [12, 36],
+      color: 'error'
     },
     {
       id: 'HOME_STANDARD',
       type: 'HOME',
       name: 'Home Insurance - Standard',
-      icon: <HomeIcon fontSize="large" color="error" />,
-      basePremium: 120,
-      description: 'Protect your home and belongings',
+      icon: <HomeIcon fontSize="large" color="success" />,
+      basePremium: 500,
+      description: 'Comprehensive home protection against natural calamities and theft',
       features: [
-        'Building structure coverage',
-        'Contents insurance',
-        'Natural disaster protection',
-        'Theft and burglary coverage',
-        'Public liability'
+        'Building structure damage cover',
+        'Household contents & electronics',
+        'Natural calamities - fire, flood, earthquake',
+        'Burglary & theft protection',
+        'Public liability cover - ₹5,00,000',
+        'Temporary accommodation expenses if uninhabitable'
       ],
-      coverageRange: [50000, 1000000],
+      coverageRange: [500000, 5000000],
       termRange: [12, 36],
-      color: 'error'
+      color: 'success'
+    },
+    {
+      id: 'HOME_PREMIUM',
+      type: 'HOME',
+      name: 'Home Insurance - Premium',
+      icon: <HomeIcon fontSize="large" color="primary" />,
+      basePremium: 1500,
+      description: 'Enhanced home coverage with valuables and appliance protection',
+      features: [
+        'All Standard plan benefits',
+        'Jewelry & valuables cover - ₹2,00,000',
+        'Home appliance warranty extension',
+        'Domestic help liability cover',
+        'Pet insurance included',
+        'Emergency home repairs - 24x7 helpline',
+        'Key replacement & lock repair cover'
+      ],
+      coverageRange: [5000000, 20000000],
+      termRange: [12, 60],
+      color: 'primary'
     }
   ];
 
@@ -199,9 +267,11 @@ function BuyPolicy() {
     if (!selectedPolicy) return;
     
     const baseAmount = selectedPolicy.basePremium;
-    const coverageFactor = coverageAmount / 100000;
-    const termFactor = policyTerm / 12;
-    const monthlyPremium = (baseAmount * coverageFactor * Math.sqrt(termFactor)) / policyTerm;
+    const coverageFactor = coverageAmount / selectedPolicy.coverageRange[0]; // Ratio vs minimum coverage
+    const termFactor = Math.sqrt(policyTerm / 12); // Discount for longer terms
+    
+    // Monthly premium calculation
+    const monthlyPremium = baseAmount * coverageFactor * termFactor;
     
     setCalculatedPremium(monthlyPremium);
   };
@@ -247,7 +317,16 @@ function BuyPolicy() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          template_policy_id: matchingTemplate.policy_id
+          template_policy_id: matchingTemplate.policy_id,
+          premium_amount: calculatedPremium,
+          coverage_amount: coverageAmount,
+          policy_term: policyTerm,
+          coverage_details: JSON.stringify({
+            coverage: coverageAmount,
+            term_months: policyTerm,
+            monthly_premium: calculatedPremium,
+            total_premium: calculatedPremium * policyTerm
+          })
         })
       });
 
@@ -289,19 +368,19 @@ function BuyPolicy() {
             <Typography variant="h6" gutterBottom>Customize Your Coverage</Typography>
             
             <Box sx={{ mt: 3, mb: 3 }}>
-              <Typography gutterBottom>Coverage Amount: ${coverageAmount.toLocaleString()}</Typography>
+              <Typography gutterBottom>Coverage Amount: ₹{coverageAmount.toLocaleString('en-IN')}</Typography>
               <Slider
                 value={coverageAmount}
                 onChange={(e, newValue) => setCoverageAmount(newValue)}
                 min={selectedPolicy.coverageRange[0]}
                 max={selectedPolicy.coverageRange[1]}
-                step={10000}
+                step={1}
                 marks={[
-                  { value: selectedPolicy.coverageRange[0], label: `$${(selectedPolicy.coverageRange[0]/1000).toFixed(0)}K` },
-                  { value: selectedPolicy.coverageRange[1], label: `$${(selectedPolicy.coverageRange[1]/1000).toFixed(0)}K` }
+                  { value: selectedPolicy.coverageRange[0], label: `₹${(selectedPolicy.coverageRange[0]/100000).toFixed(1)}L` },
+                  { value: selectedPolicy.coverageRange[1], label: `₹${(selectedPolicy.coverageRange[1]/100000).toFixed(0)}L` }
                 ]}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(value) => `$${value.toLocaleString()}`}
+                valueLabelFormat={(value) => `₹${(value/100000).toFixed(2)}L`}
               />
             </Box>
 
@@ -324,10 +403,10 @@ function BuyPolicy() {
 
             <Paper sx={{ p: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
               <Typography variant="h5" align="center">
-                ${calculatedPremium.toFixed(2)}/month
+                ₹{calculatedPremium.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/month
               </Typography>
               <Typography variant="body2" align="center">
-                Total: ${(calculatedPremium * policyTerm).toFixed(2)} for {policyTerm} months
+                Total: ₹{(calculatedPremium * policyTerm).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} for {policyTerm} months
               </Typography>
             </Paper>
           </Box>
@@ -350,7 +429,7 @@ function BuyPolicy() {
                 <ListItemIcon><CheckIcon color="success" /></ListItemIcon>
                 <ListItemText 
                   primary="Coverage Amount" 
-                  secondary={`$${coverageAmount.toLocaleString()}`}
+                  secondary={`₹${coverageAmount.toLocaleString('en-IN')}`}
                 />
               </ListItem>
               <ListItem>
@@ -364,14 +443,14 @@ function BuyPolicy() {
                 <ListItemIcon><CheckIcon color="success" /></ListItemIcon>
                 <ListItemText 
                   primary="Monthly Premium" 
-                  secondary={`$${calculatedPremium.toFixed(2)}`}
+                  secondary={`₹${calculatedPremium.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
                 />
               </ListItem>
               <ListItem>
                 <ListItemIcon><CheckIcon color="success" /></ListItemIcon>
                 <ListItemText 
                   primary="Total Premium" 
-                  secondary={`$${(calculatedPremium * policyTerm).toFixed(2)}`}
+                  secondary={`₹${(calculatedPremium * policyTerm).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
                 />
               </ListItem>
             </List>
@@ -400,7 +479,7 @@ function BuyPolicy() {
             </Alert>
 
             <Typography variant="body1" paragraph>
-              Amount to pay: <strong>${(calculatedPremium * policyTerm).toFixed(2)}</strong>
+              Amount to pay: <strong>₹{(calculatedPremium * policyTerm).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
             </Typography>
 
             <Typography variant="body2" color="text.secondary">
@@ -453,7 +532,7 @@ function BuyPolicy() {
                 </Typography>
 
                 <Typography variant="h5" color="primary" gutterBottom>
-                  From ${policy.basePremium}/month
+                  From ₹{policy.basePremium.toLocaleString('en-IN')}/month
                 </Typography>
 
                 <Divider sx={{ my: 2 }} />

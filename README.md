@@ -73,17 +73,38 @@ Adjust values as needed. Do NOT commit real secrets.
    ```
 
 ### Database Setup
-Import the provided development schema & seed data:
-```powershell
-mysql -u insurance_app -papp_password_123 insurance_db_dev < database_scripts/insurance_db_dev_backup.sql
-```
-If the DB or user doesn't exist, create them first in MySQL:
+
+**Complete setup in 3 steps**:
+
+1. **Create DB & User**:
 ```sql
 CREATE DATABASE insurance_db_dev;
 CREATE USER 'insurance_app'@'localhost' IDENTIFIED BY 'app_password_123';
 GRANT ALL PRIVILEGES ON insurance_db_dev.* TO 'insurance_app'@'localhost';
 FLUSH PRIVILEGES;
 ```
+
+2. **Import Core Schema** (REQUIRED — base tables, triggers, seed data):
+```powershell
+mysql -u insurance_app -papp_password_123 insurance_db_dev < database_scripts/insurance_db_dev_backup.sql
+```
+
+3. **Import Advanced Features** (OPTIONAL — analytics, recurring billing, fraud detection):
+```powershell
+mysql -u insurance_app -papp_password_123 insurance_db_dev < database_scripts/SETUP_COMPLETE_DB.sql
+```
+
+**What's included**:
+- Core backup: Customer/admin tables, policies, claims, payments, two-stage approval workflow, 20+ sample records.
+- Advanced features: In-app notifications, recurring payments, refunds, fraud detection, analytics views.
+
+**Skip advanced features** if you only need login/policy/claim basics. See `database_scripts/SETUP_INSTRUCTIONS.md` for details.
+
+**Verification**:
+```powershell
+mysql -u insurance_app -papp_password_123 insurance_db_dev -e "SHOW TABLES; SELECT COUNT(*) FROM customer;"
+```
+Expected: ~20 tables, 20+ customers.
 
 ### Running (Local Dev)
 Backend (Express API):

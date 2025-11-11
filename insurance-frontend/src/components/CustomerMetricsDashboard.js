@@ -112,8 +112,8 @@ export default function CustomerMetricsDashboard() {
             <CardContent>
               <Typography variant="h6">Claim Amounts</Typography>
               <Divider sx={{ my: 1 }} />
-              <MetricRow label="Total Amount" value={`$${metrics.totalClaimAmount.toFixed(2)}`} />
-              <MetricRow label="Average Amount" value={`$${metrics.avgClaimAmount.toFixed(2)}`} />
+              <MetricRow label="Total Amount" value={`₹${metrics.totalClaimAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} />
+              <MetricRow label="Average Amount" value={`₹${metrics.avgClaimAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} />
             </CardContent>
           </Card>
         </Grid>

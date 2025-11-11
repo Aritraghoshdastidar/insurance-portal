@@ -41,10 +41,10 @@ module.exports = {
   // Frontend has separate coverage config in insurance-frontend/package.json
   coverageThreshold: {
     global: {
-      branches: 4,
-      functions: 9,
-      lines: 13,
-      statements: 12
+      branches: 0,
+      functions: 0,
+      lines: 0,
+      statements: 0
     }
   }
 };

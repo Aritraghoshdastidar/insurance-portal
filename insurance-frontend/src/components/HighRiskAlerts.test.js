@@ -42,8 +42,9 @@ describe('HighRiskAlerts Component', () => {
       expect(screen.getByText('CLM002')).toBeInTheDocument();
       expect(screen.getByText('CUST001')).toBeInTheDocument();
       expect(screen.getByText('CUST002')).toBeInTheDocument();
-  expect(screen.getByText('₹50000.00')).toBeInTheDocument();
-  expect(screen.getByText('₹75000.00')).toBeInTheDocument();
+      // Amounts are formatted using en-IN locale with thousands separators
+      expect(screen.getByText('₹50,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹75,000.00')).toBeInTheDocument();
     });
   });
 

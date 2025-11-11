@@ -182,189 +182,217 @@ function Dashboard() {
   };
 
   return (
-    <Box>
-      {/* Header with Action Button */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Customer Dashboard
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Tooltip title="Refresh all data">
-            <IconButton onClick={handleRefreshAll} color="primary">
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<BuyIcon />}
-            onClick={() => navigate('/buy-policy')}
-            sx={{
-              py: 1.5,
-              px: 4,
-              fontSize: '1.1rem',
-              fontWeight: 600,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-              '&:hover': {
-                boxShadow: '0 6px 16px rgba(102, 126, 234, 0.6)',
-                transform: 'translateY(-2px)',
-              },
-              transition: 'all 0.3s ease',
-            }}
-          >
-            Buy New Policy
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Notifications Section */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <NotificationIcon sx={{ mr: 1 }} />
-            <Typography variant="h6">Recent Notifications</Typography>
-          </Box>
-          {loadingNotifications ? (
-            <CircularProgress size={24} />
-          ) : errorNotifications ? (
-            <Alert severity="error">{errorNotifications}</Alert>
-          ) : notifications && Array.isArray(notifications) && notifications.length === 0 ? (
-            <Typography color="text.secondary">No recent notifications.</Typography>
-          ) : (
+    <Box sx={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '100vh', py: 4 }}>
+      <Box sx={{ maxWidth: 1400, mx: 'auto', px: 3 }}>
+        {/* Header with Action Button */}
+        <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              {notifications.slice(0, 5).map(notif => (
-                <Box key={notif.notification_id} sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(notif.sent_timestamp).toLocaleString()}
-                  </Typography>
-                  <Typography variant="body2">{notif.message}</Typography>
-                </Box>
-              ))}
+              <Typography variant="h3" component="h1" sx={{ color: 'white', fontWeight: 700, mb: 1 }}>
+                Customer Dashboard
+              </Typography>
+              <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                Manage your policies and claims
+              </Typography>
             </Box>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Policies Section */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <PolicyIcon sx={{ mr: 1 }} />
-            <Typography variant="h6">My Policies</Typography>
+            <Tooltip title="Refresh all data">
+              <IconButton onClick={handleRefreshAll} size="small" sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
-          {loadingPolicies ? (
-            <CircularProgress size={24} />
-          ) : errorPolicies ? (
-            <Alert severity="error">{errorPolicies}</Alert>
-          ) : !policies || !Array.isArray(policies) || policies.length === 0 ? (
-            <Typography color="text.secondary">No policies found</Typography>
-          ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Policy ID</strong></TableCell>
-                    <TableCell><strong>Type</strong></TableCell>
-                    <TableCell><strong>Premium</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Action</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {policies.map(policy => {
-                    const statusMsg = activationStatus[policy.policy_id];
-                    return (
-                      <TableRow key={policy.policy_id}>
-                        <TableCell>{policy.policy_id}</TableCell>
-                        <TableCell>{policy.policy_type}</TableCell>
-                        <TableCell>${parseFloat(policy.premium_amount).toFixed(2)}</TableCell>
+        </Paper>
+
+        {/* Notifications Section */}
+        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                mr: 2
+              }}>
+                <NotificationIcon sx={{ color: 'white' }} />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Recent Notifications</Typography>
+            </Box>
+            {loadingNotifications ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : errorNotifications ? (
+              <Alert severity="error">{errorNotifications}</Alert>
+            ) : notifications && Array.isArray(notifications) && notifications.length === 0 ? (
+              <Typography color="text.secondary">No recent notifications.</Typography>
+            ) : (
+              <Box>
+                {notifications.slice(0, 5).map(notif => (
+                  <Box key={notif.notification_id} sx={{ mb: 1, p: 2, bgcolor: '#f8f9fa', borderRadius: 2, borderLeft: '4px solid #667eea' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(notif.sent_timestamp).toLocaleString()}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>{notif.message}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Policies Section */}
+        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <Box sx={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                mr: 2
+              }}>
+                <PolicyIcon sx={{ color: 'white' }} />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>My Policies</Typography>
+            </Box>
+            {loadingPolicies ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : errorPolicies ? (
+              <Alert severity="error">{errorPolicies}</Alert>
+            ) : !policies || !Array.isArray(policies) || policies.length === 0 ? (
+              <Typography color="text.secondary">No policies found</Typography>
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                      <TableCell sx={{ fontWeight: 700 }}>Policy ID</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Premium</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {policies.map(policy => {
+                      const statusMsg = activationStatus[policy.policy_id];
+                      return (
+                        <TableRow key={policy.policy_id} hover>
+                          <TableCell sx={{ fontFamily: 'monospace' }}>{policy.policy_id}</TableCell>
+                          <TableCell sx={{ fontWeight: 500 }}>{policy.policy_type}</TableCell>
+                          <TableCell sx={{ fontWeight: 600, color: '#667eea' }}>₹{parseFloat(policy.premium_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={policy.status.replace(/_/g, ' ')}
+                              color={getStatusColor(policy.status)}
+                              size="small"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {policy.status === 'INACTIVE_AWAITING_PAYMENT' && !statusMsg && (
+                              <Button
+                                variant="contained"
+                                color="success"
+                                size="small"
+                                onClick={() => handleActivatePolicy(policy.policy_id)}
+                                sx={{ boxShadow: 2 }}
+                              >
+                                Activate (Mock Pay)
+                              </Button>
+                            )}
+                            {statusMsg && (
+                              <Typography variant="caption" color={statusMsg.startsWith('Error') ? 'error' : 'info'}>
+                                {statusMsg}
+                              </Typography>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* File Claim Section */}
+        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <FileClaim onClaimFiled={handleClaimFiled} />
+          </CardContent>
+        </Card>
+
+        {/* Claims Section */}
+        <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <Box sx={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                mr: 2
+              }}>
+                <ClaimIcon sx={{ color: 'white' }} />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>My Claims</Typography>
+            </Box>
+            {loadingClaims ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : errorClaims ? (
+              <Alert severity="error">{errorClaims}</Alert>
+            ) : !claims || !Array.isArray(claims) || claims.length === 0 ? (
+              <Typography color="text.secondary">No claims found</Typography>
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                      <TableCell sx={{ fontWeight: 700 }}>Claim ID</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {claims.map(claim => (
+                      <TableRow key={claim.claim_id} hover>
+                        <TableCell sx={{ fontFamily: 'monospace' }}>{claim.claim_id}</TableCell>
+                        <TableCell>{claim.description}</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#4facfe' }}>₹{parseFloat(claim.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                         <TableCell>
                           <Chip 
-                            label={policy.status.replace(/_/g, ' ')}
-                            color={getStatusColor(policy.status)}
+                            label={claim.status || 'PENDING'}
+                            color={getStatusColor(claim.status)}
                             size="small"
+                            sx={{ fontWeight: 600 }}
                           />
                         </TableCell>
-                        <TableCell>
-                          {policy.status === 'INACTIVE_AWAITING_PAYMENT' && !statusMsg && (
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              onClick={() => handleActivatePolicy(policy.policy_id)}
-                            >
-                              Activate (Mock Pay)
-                            </Button>
-                          )}
-                          {statusMsg && (
-                            <Typography variant="caption" color={statusMsg.startsWith('Error') ? 'error' : 'info'}>
-                              {statusMsg}
-                            </Typography>
-                          )}
-                        </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* File Claim Section */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <FileClaim onClaimFiled={handleClaimFiled} />
-        </CardContent>
-      </Card>
-
-      {/* Claims Section */}
-      <Card>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <ClaimIcon sx={{ mr: 1 }} />
-            <Typography variant="h6">My Claims</Typography>
-          </Box>
-          {loadingClaims ? (
-            <CircularProgress size={24} />
-          ) : errorClaims ? (
-            <Alert severity="error">{errorClaims}</Alert>
-          ) : !claims || !Array.isArray(claims) || claims.length === 0 ? (
-            <Typography color="text.secondary">No claims found</Typography>
-          ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Claim ID</strong></TableCell>
-                    <TableCell><strong>Description</strong></TableCell>
-                    <TableCell><strong>Amount</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {claims.map(claim => (
-                    <TableRow key={claim.claim_id}>
-                      <TableCell>{claim.claim_id}</TableCell>
-                      <TableCell>{claim.description}</TableCell>
-                      <TableCell>${parseFloat(claim.amount).toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={claim.status || 'PENDING'}
-                          color={getStatusColor(claim.status)}
-                          size="small"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
     </Box>
   );
 }

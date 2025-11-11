@@ -107,7 +107,7 @@ const Layout = ({ children, onLogout }) => {
   const menuItems = user?.isAdmin ? adminMenuItems : customerMenuItems;
 
   const drawerContent = (
-    <Box sx={{ width: 250 }} role="presentation">
+    <Box sx={{ width: 250, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation">
       <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white' }}>
         <Typography variant="h6">
           {user?.isAdmin ? 'Admin Panel' : 'Insurance Portal'}
@@ -116,7 +116,7 @@ const Layout = ({ children, onLogout }) => {
           {user?.email || 'User'}
         </Typography>
       </Box>
-      <List>
+      <List sx={{ flexGrow: 1, overflowY: 'auto' }}>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
@@ -131,7 +131,7 @@ const Layout = ({ children, onLogout }) => {
           </ListItem>
         ))}
       </List>
-      <Box sx={{ position: 'absolute', bottom: 0, width: '100%', p: 2 }}>
+      <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.12)' }}>
         <Button
           fullWidth
           variant="outlined"
@@ -218,6 +218,14 @@ const Layout = ({ children, onLogout }) => {
         open={drawerOpen}
         onClose={toggleDrawer}
         variant={isMobile ? 'temporary' : 'persistent'}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: 250,
+            boxSizing: 'border-box',
+            mt: 8, // Below the AppBar
+            height: 'calc(100vh - 64px)', // Full height minus AppBar
+          },
+        }}
       >
         {drawerContent}
       </Drawer>
@@ -231,14 +239,13 @@ const Layout = ({ children, onLogout }) => {
           mt: 8,
           ml: drawerOpen && !isMobile ? '250px' : 0,
           transition: theme.transitions.create(['margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
+            easing: theme.transitions.easing.easeOut,
+            duration: theme.transitions.duration.enteringScreen,
           }),
+          width: drawerOpen && !isMobile ? 'calc(100% - 250px)' : '100%',
         }}
       >
-        <Container maxWidth="xl">
-          {children}
-        </Container>
+        {children}
       </Box>
     </Box>
   );

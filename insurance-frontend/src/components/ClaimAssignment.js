@@ -169,8 +169,7 @@ function ClaimAssignment() {
                       <TableCell>{claim.customer_id}</TableCell>
                       <TableCell>{claim.description}</TableCell>
                       <TableCell align="right">
-                        ₹
-                        {parseFloat(claim.amount).toLocaleString(undefined, {
+                        ₹{parseFloat(claim.amount).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}

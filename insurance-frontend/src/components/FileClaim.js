@@ -83,13 +83,13 @@ function FileClaim({ onClaimFiled }) {
         />
       </div>
       <div className="form-group">
-        <label htmlFor="amount">Claim Amount ($)</label>
+        <label htmlFor="amount">Claim Amount (₹)</label>
         <input
           id="amount"
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder="e.g., 250.00"
+          placeholder="e.g., 25000.00"
           required
         />
       </div>

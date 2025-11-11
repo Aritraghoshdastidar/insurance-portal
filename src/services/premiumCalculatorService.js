@@ -202,8 +202,8 @@ class PremiumCalculatorService {
         let riskScore = 0;
         const flags = [];
 
-        // Amount-based risk
-        if (claimData.amount > 1000000) {
+        // Amount-based risk (₹80 lakhs threshold for high-value claims)
+        if (claimData.amount > 8000000) {
             riskScore += 3;
             flags.push('HIGH_AMOUNT');
         }

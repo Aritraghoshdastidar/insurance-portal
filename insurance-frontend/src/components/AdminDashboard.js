@@ -213,137 +213,192 @@ function AdminDashboard() {
 
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">Admin Dashboard</Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<WorkflowIcon />}
-          onClick={() => navigate('/admin/workflows')}
-        >
-          Manage Workflows
-        </Button>
+    <Box sx={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '100vh', py: 4 }}>
+      <Box sx={{ maxWidth: 1400, mx: 'auto', px: 3 }}>
+        {/* Header */}
+        <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h3" component="h1" sx={{ color: 'white', fontWeight: 700, mb: 1 }}>
+                Admin Dashboard
+              </Typography>
+              <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                {currentUser ? `Welcome, ${currentUser.role || 'Admin'}` : 'Manage policies and claims'}
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<WorkflowIcon />}
+              onClick={() => navigate('/admin/workflows')}
+              sx={{
+                bgcolor: 'white',
+                color: '#667eea',
+                px: 3,
+                py: 1.5,
+                fontWeight: 600,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.9)',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.3)',
+                  transform: 'translateY(-2px)',
+                },
+                transition: 'all 0.3s ease',
+              }}
+            >
+              Manage Workflows
+            </Button>
+          </Box>
+        </Paper>
+
+        {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>}
+
+        {/* Pending Policy Approvals */}
+        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <Box sx={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                mr: 2
+              }}>
+                <PolicyIcon sx={{ color: 'white' }} />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Pending Policy Approvals</Typography>
+            </Box>
+            {loadingPolicies ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : pendingPolicies.length === 0 ? (
+              <Typography color="text.secondary">No policies awaiting approval.</Typography>
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                      <TableCell sx={{ fontWeight: 700 }}>Policy ID</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Premium</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Initial Approver</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {pendingPolicies.map(policy => (
+                      <TableRow key={policy.policy_id} hover>
+                        <TableCell sx={{ fontFamily: 'monospace' }}>{policy.policy_id}</TableCell>
+                        <TableCell sx={{ fontWeight: 500 }}>{policy.policy_type}</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#667eea' }}>₹{parseFloat(policy.premium_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={policy.status.replace(/_/g, ' ')}
+                            color={policy.status.includes('FINAL') ? 'warning' : 'info'}
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </TableCell>
+                        <TableCell>{policy.initial_approver_name || 'N/A'}</TableCell>
+                        <TableCell>{renderPolicyAction(policy)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pending Claims */}
+        <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <Box sx={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                mr: 2
+              }}>
+                <ClaimIcon sx={{ color: 'white' }} />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Pending Claims</Typography>
+            </Box>
+            {loadingClaims ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : pendingClaims.length === 0 ? (
+              <Typography color="text.secondary">No pending claims requiring review.</Typography>
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                      <TableCell sx={{ fontWeight: 700 }}>Claim ID</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Date Filed</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {pendingClaims.map(claim => (
+                      <TableRow key={claim.claim_id} hover>
+                        <TableCell sx={{ fontFamily: 'monospace' }}>{claim.claim_id}</TableCell>
+                        <TableCell sx={{ fontWeight: 500 }}>{claim.customer_name}</TableCell>
+                        <TableCell>{claim.description}</TableCell>
+                        <TableCell>{new Date(claim.claim_date).toLocaleDateString()}</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#4facfe' }}>₹{parseFloat(claim.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell>
+                          {updateStatus[claim.claim_id] ? (
+                            <Typography variant="caption" color={updateStatus[claim.claim_id]?.startsWith('Error') ? 'error' : 'info'}>
+                              {updateStatus[claim.claim_id]}
+                            </Typography>
+                          ) : (
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Button
+                                variant="contained"
+                                color="success"
+                                size="small"
+                                startIcon={<ApproveIcon />}
+                                onClick={() => handleClaimUpdate(claim.claim_id, 'APPROVED')}
+                                sx={{ boxShadow: 2 }}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                variant="contained"
+                                color="error"
+                                size="small"
+                                startIcon={<DeclineIcon />}
+                                onClick={() => handleClaimUpdate(claim.claim_id, 'DECLINED')}
+                                sx={{ boxShadow: 2 }}
+                              >
+                                Decline
+                              </Button>
+                            </Box>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
       </Box>
-
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <PolicyIcon sx={{ mr: 1 }} />
-            <Typography variant="h6">Pending Policy Approvals</Typography>
-          </Box>
-          {loadingPolicies ? (
-            <CircularProgress size={24} />
-          ) : pendingPolicies.length === 0 ? (
-            <Typography color="text.secondary">No policies awaiting approval.</Typography>
-          ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Policy ID</strong></TableCell>
-                    <TableCell><strong>Type</strong></TableCell>
-                    <TableCell><strong>Premium</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Initial Approver</strong></TableCell>
-                    <TableCell><strong>Action</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {pendingPolicies.map(policy => (
-                    <TableRow key={policy.policy_id}>
-                      <TableCell>{policy.policy_id}</TableCell>
-                      <TableCell>{policy.policy_type}</TableCell>
-                      <TableCell>${parseFloat(policy.premium_amount).toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={policy.status}
-                          color={policy.status.includes('FINAL') ? 'warning' : 'info'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>{policy.initial_approver_name || 'N/A'}</TableCell>
-                      <TableCell>{renderPolicyAction(policy)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      <Divider sx={{ my: 3 }} />
-
-      <Card>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <ClaimIcon sx={{ mr: 1 }} />
-            <Typography variant="h6">Pending Claims</Typography>
-          </Box>
-          {loadingClaims ? (
-            <CircularProgress size={24} />
-          ) : pendingClaims.length === 0 ? (
-            <Typography color="text.secondary">No pending claims requiring review.</Typography>
-          ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Claim ID</strong></TableCell>
-                    <TableCell><strong>Customer</strong></TableCell>
-                    <TableCell><strong>Description</strong></TableCell>
-                    <TableCell><strong>Date Filed</strong></TableCell>
-                    <TableCell><strong>Amount</strong></TableCell>
-                    <TableCell><strong>Action</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {pendingClaims.map(claim => (
-                    <TableRow key={claim.claim_id}>
-                      <TableCell>{claim.claim_id}</TableCell>
-                      <TableCell>{claim.customer_name}</TableCell>
-                      <TableCell>{claim.description}</TableCell>
-                      <TableCell>{new Date(claim.claim_date).toLocaleDateString()}</TableCell>
-                      <TableCell>${parseFloat(claim.amount).toFixed(2)}</TableCell>
-                      <TableCell>
-                        {updateStatus[claim.claim_id] ? (
-                          <Typography variant="caption" color={updateStatus[claim.claim_id]?.startsWith('Error') ? 'error' : 'info'}>
-                            {updateStatus[claim.claim_id]}
-                          </Typography>
-                        ) : (
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              startIcon={<ApproveIcon />}
-                              onClick={() => handleClaimUpdate(claim.claim_id, 'APPROVED')}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="contained"
-                              color="error"
-                              size="small"
-                              startIcon={<DeclineIcon />}
-                              onClick={() => handleClaimUpdate(claim.claim_id, 'DECLINED')}
-                            >
-                              Decline
-                            </Button>
-                          </Box>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
     </Box>
   );
 }

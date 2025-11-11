@@ -93,7 +93,7 @@ function HighRiskAlerts() {
                     <TableRow key={alert.claim_id}>
                       <TableCell>{alert.claim_id}</TableCell>
                       <TableCell>{alert.customer_id}</TableCell>
-                      <TableCell>₹{parseFloat(alert.amount).toFixed(2)}</TableCell>
+                      <TableCell>₹{parseFloat(alert.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                       <TableCell>
                         <Chip
                           label={alert.claim_status}
@@ -110,7 +110,7 @@ function HighRiskAlerts() {
                       <TableCell>
                         <Chip
                           label={alert.risk_score}
-                          color={alert.risk_score > 8 ? "error" : "default"}
+                          color={alert.risk_score > 8 ? "error" : alert.risk_score > 5 ? "warning" : "default"}
                           size="small"
                         />
                       </TableCell>

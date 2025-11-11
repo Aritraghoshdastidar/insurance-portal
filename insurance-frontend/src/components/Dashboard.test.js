@@ -347,14 +347,13 @@ describe('Dashboard', () => {
     });
   });
 
-  test('navigates to buy policy page when button clicked', async () => {
+  test('renders header and refresh control in updated layout', async () => {
     renderDashboard();
 
     await waitFor(() => {
-      const buyButton = screen.getByRole('button', { name: /Buy New Policy/i });
-      expect(buyButton).toBeInTheDocument();
-      // Just verify the button exists and has the correct styling
-      // Navigation testing would require full router integration
+      expect(screen.getByText(/Customer Dashboard/i)).toBeInTheDocument();
+      // Refresh icon button should be present
+      expect(screen.getByLabelText(/Refresh all data/i)).toBeInTheDocument();
     });
   });
 });
