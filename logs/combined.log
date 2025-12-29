@@ -3,3 +3,8 @@
 {"level":"info","message":"📚 API Documentation available at http://localhost:3001/api-docs","service":"insurance-api","timestamp":"2025-11-09 10:01:53"}
 {"level":"info","message":"🏥 Health check at http://localhost:3001/health","service":"insurance-api","timestamp":"2025-11-09 10:01:53"}
 {"level":"info","message":"🌍 Environment: development","service":"insurance-api","timestamp":"2025-11-09 10:01:53"}
+{"level":"info","message":"Database connection established successfully","service":"insurance-api","timestamp":"2025-12-29 18:35:03"}
+{"level":"info","message":"🚀 Server running on port 3001","service":"insurance-api","timestamp":"2025-12-29 18:35:03"}
+{"level":"info","message":"📚 API Documentation available at http://localhost:3001/api-docs","service":"insurance-api","timestamp":"2025-12-29 18:35:03"}
+{"level":"info","message":"🏥 Health check at http://localhost:3001/health","service":"insurance-api","timestamp":"2025-12-29 18:35:03"}
+{"level":"info","message":"🌍 Environment: development","service":"insurance-api","timestamp":"2025-12-29 18:35:03"}
